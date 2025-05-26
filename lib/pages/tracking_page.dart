@@ -67,7 +67,7 @@ class _TrackingPageState extends State<TrackingPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: buttonColor,
                   foregroundColor: buttonTextColor,
-                  textStyle: Theme.of(context).textTheme.headlineSmall,
+                  textStyle: Theme.of(context).textTheme.titleMedium,
                   elevation: 7,
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                   shape: const StadiumBorder(),
@@ -75,7 +75,7 @@ class _TrackingPageState extends State<TrackingPage> {
                 child: Text(buttonText)),
             ],
           ),
-          SizedBox(height: 30),
+          SizedBox(height: 50),
         ],
       );
     },);
@@ -106,7 +106,7 @@ class BigCard extends StatelessWidget {
         color: theme.colorScheme.primary,
         margin: EdgeInsets.all(24),
         elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -122,11 +122,11 @@ class BigCard extends StatelessWidget {
                   const SizedBox(height: 11),
                   Text("Time: \n\t ${point!.timestamp.toString().split('.').first}", style: style),
                   const SizedBox(height: 7),
-                  Text("Location: ${point!.location.toString()}", style: style),
+                  Text(point!.location.toPrint(), style: style),
                   const SizedBox(height: 7),
                   Text("Orientation: \n\t ${point!.orientation}°", style: style),
                   const SizedBox(height: 7),
-                  Text("Vibration specs: ${point!.vibrationSpec.toString()}", style: style),
+                  Text(point!.vibrationSpec.toPrint(), style: style),
                   const SizedBox(height: 7),
                   Text("Speed: \n\t ${point!.speed}", style: style),
                 ]

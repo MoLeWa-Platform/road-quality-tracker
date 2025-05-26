@@ -14,14 +14,14 @@ class RunPoint{
     required this.speed
   });
 
-  @override
-  String toString() {
-    return ("Point information:" 
-      "\nTime: \n\t\t ${timestamp.toString().split('.').first}" 
-      "\nLocation: ${location.toString()}" 
-      "\nOrientation: \n\t\t $orientation°"
+  
+  String toPrint() {
+    return ("Point:" 
+      "\nTime: ${timestamp.toString().split('.').first}" 
+      "\nLocation: ${location.toString()}"
       "\nVibration specs: ${vibrationSpec.toString()}"
-      "\nSpeed: \n\t\t $speed");
+      "\nOrientation: $orientation°"
+      "\nSpeed: $speed");
   }
 }
 
@@ -36,8 +36,13 @@ class LocationSpec{
 
   @override
   String toString() {
-    return "\n\t latitude: ${latitude.toStringAsFixed(6)} \n\t longitude: ${longitude.toStringAsFixed(6)}";
+    return "Location <lat: ${latitude.toStringAsFixed(6)}, long: ${longitude.toStringAsFixed(6)}>";
   }
+  
+  String toPrint() {
+    return "Location: \n\t latitude: ${latitude.toStringAsFixed(6)} \n\t longitude: ${longitude.toStringAsFixed(6)}";
+  }
+
 }
 
 class VibrationSpec{
@@ -53,6 +58,11 @@ class VibrationSpec{
 
   @override
   String toString() {
-    return "\n\t x: $xCoordinate \n\t y: $yCoordinate \n\t z: $zCoordinate";
+    return "VibrationSpec<x: $xCoordinate, y: $yCoordinate, z: $zCoordinate>";
   }
+
+  String toPrint() {
+    return "Vibration: \n\t x: $xCoordinate \n\t y: $yCoordinate \n\t z: $zCoordinate";
+  }
+
 }

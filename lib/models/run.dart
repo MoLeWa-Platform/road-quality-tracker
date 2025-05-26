@@ -33,7 +33,7 @@ class Run {
 
   void addPoint(RunPoint point) {
     runPoints.add(point);
-    dev.log('created Point! $point, and list $runPoints', name: 'Run');
+    dev.log('created Point! ${point.toPrint()}, and list with ${runPoints.length} elements.', name: 'Run');
     
   }
 }
