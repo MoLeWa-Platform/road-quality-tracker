@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:road_quality_tracker/models/run_point.dart';
 import '../services/run_tracker.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 
 class TrackingPage extends StatefulWidget {
@@ -13,9 +16,28 @@ class TrackingPage extends StatefulWidget {
 class _TrackingPageState extends State<TrackingPage> {
   RunTracker runTracker = RunTracker.create();
 
+  List<AccelerometerEvent> _accelerometerValues = [];
+
+  // StreamSubscription for accelerometer events
+  late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Subscribe to accelerometer events
+    _accelerometerSubscription = accelerometerEvents.listen((event) {
+      setState(() {
+        // Update the _accelerometerValues list with the latest event
+        _accelerometerValues = [event];
+      });
+    });
+  }
+  
   @override
   void dispose() {
     runTracker.dispose(); // Cancel the location stream
+    _accelerometerSubscription.cancel();
     super.dispose();
   }
 
@@ -51,6 +73,21 @@ class _TrackingPageState extends State<TrackingPage> {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+            SizedBox(height: 250),
+            Text(
+              'Accelerometer Data:',
+              style: TextStyle(fontSize: 20),
+            ),
+            SizedBox(height: 10),
+            if (_accelerometerValues.isNotEmpty)
+              Text(
+                'X: ${_accelerometerValues[0].x.toStringAsFixed(2)}, '
+                'Y: ${_accelerometerValues[0].y.toStringAsFixed(2)}, '
+                'Z: ${_accelerometerValues[0].z.toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 16),
+              )
+            else
+              Text('No data available', style: TextStyle(fontSize: 16)),
           Expanded(
             child: ValueListenableBuilder<RunPoint?>(
               valueListenable: runTracker.lastPoint,
