@@ -1,16 +1,22 @@
 
+import 'dart:ffi';
+
 class RunPoint{
   final DateTime timestamp;
   final LocationSpec location;
-  final VibrationSpec vibrationSpec;
-  final double orientation;
+  final DimensionalSpec vibrationSpec;
+  final DimensionalSpec rotationSpec;
+  final DimensionalSpec compassSpec;
+  //final double orientation;
   final double speed;
 
   RunPoint({
     required this.timestamp,
     required this.location,
-    required this.vibrationSpec, 
-    required this.orientation,
+    required this.vibrationSpec,
+    required this.rotationSpec,
+    required this.compassSpec,
+    //required this.orientation,
     required this.speed
   });
 
@@ -20,7 +26,9 @@ class RunPoint{
       "\nTime: ${timestamp.toString().split('.').first}" 
       "\nLocation: ${location.toString()}"
       "\nVibration specs: ${vibrationSpec.toString()}"
-      "\nOrientation: $orientation°"
+      "\nRotation specs: ${rotationSpec.toString()}"
+      "\nCompass specs: ${compassSpec.toString()}"
+      //"\nOrientation: $orientation°"
       "\nSpeed: $speed");
   }
 }
@@ -45,12 +53,14 @@ class LocationSpec{
 
 }
 
-class VibrationSpec{
+class DimensionalSpec{
+  final String type;
   final double xCoordinate;
   final double yCoordinate;
   final double zCoordinate;
 
-  VibrationSpec({
+  DimensionalSpec({
+    required this.type,
     required this.xCoordinate,
     required this.yCoordinate, 
     required this.zCoordinate, 
@@ -58,11 +68,11 @@ class VibrationSpec{
 
   @override
   String toString() {
-    return "VibrationSpec<x: $xCoordinate, y: $yCoordinate, z: $zCoordinate>";
+    return "$type<x: $xCoordinate, y: $yCoordinate, z: $zCoordinate>";
   }
 
   String toPrint() {
-    return "Vibration: \n\t x: $xCoordinate \n\t y: $yCoordinate \n\t z: $zCoordinate";
+    return "$type: \n\t x: $xCoordinate \n\t y: $yCoordinate \n\t z: $zCoordinate";
   }
 
 }

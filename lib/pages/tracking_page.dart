@@ -1,9 +1,10 @@
 import 'dart:async';
-
+import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
 import 'package:road_quality_tracker/models/run_point.dart';
 import '../services/run_tracker.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import '../models/run.dart';
 
 
 class TrackingPage extends StatefulWidget {
@@ -16,35 +17,60 @@ class TrackingPage extends StatefulWidget {
 class _TrackingPageState extends State<TrackingPage> {
   RunTracker runTracker = RunTracker.create();
 
-  List<AccelerometerEvent> _accelerometerValues = [];
+  List<AccelerometerEvent> _accelerometerValue = [];
+  List<GyroscopeEvent> _rotationValue = [];
+  List<MagnetometerEvent> _compassValue = [];
 
-  // StreamSubscription for accelerometer events
   late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
+  late StreamSubscription<GyroscopeEvent> _gyroscopeSubscription;
+  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+
+  void subscribeToSensors(){
+    dev.log('Subcribing to sensors', name: 'TrackingPage');
+    _accelerometerSubscription = accelerometerEvents.listen((event) {
+      setState(() {
+        _accelerometerValue = [event];
+        runTracker.onVibrationEvent(event);
+      });
+    });
+    _gyroscopeSubscription = gyroscopeEvents.listen((event) {
+      setState(() {
+        _rotationValue = [event];
+        runTracker.onRotationEvent(event);
+      });
+    });
+
+    _magnetometerSubscription = magnetometerEvents.listen((event) {
+      setState(() {
+        _compassValue = [event];
+        runTracker.onCompassEvent(event);
+      });
+    });
+  }
+
+  void disposeSensors(){
+    _accelerometerSubscription.cancel();
+    _gyroscopeSubscription.cancel();
+    _magnetometerSubscription.cancel();
+  }
 
   @override
   void initState() {
     super.initState();
-
-    // Subscribe to accelerometer events
-    _accelerometerSubscription = accelerometerEvents.listen((event) {
-      setState(() {
-        // Update the _accelerometerValues list with the latest event
-        _accelerometerValues = [event];
-      });
-    });
+    subscribeToSensors();
   }
   
   @override
   void dispose() {
     runTracker.dispose(); // Cancel the location stream
-    _accelerometerSubscription.cancel();
+    disposeSensors();
     super.dispose();
   }
 
   void toggleRun(){
     if (runTracker.isReady) {
         if (runTracker.runIsActive.value) {
-        runTracker.endRun();
+        Run finishedRun = runTracker.endRun();
       } else {
         runTracker.startRun();
       }
@@ -73,28 +99,37 @@ class _TrackingPageState extends State<TrackingPage> {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-            SizedBox(height: 250),
-            Text(
-              'Accelerometer Data:',
-              style: TextStyle(fontSize: 20),
-            ),
-            SizedBox(height: 10),
-            if (_accelerometerValues.isNotEmpty)
-              Text(
-                'X: ${_accelerometerValues[0].x.toStringAsFixed(2)}, '
-                'Y: ${_accelerometerValues[0].y.toStringAsFixed(2)}, '
-                'Z: ${_accelerometerValues[0].z.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 16),
-              )
-            else
-              Text('No data available', style: TextStyle(fontSize: 16)),
+          if (!runIsActive)
           Expanded(
-            child: ValueListenableBuilder<RunPoint?>(
-              valueListenable: runTracker.lastPoint,
-              builder: (context, point, _) => Center(
-                child: BigCard(point: point, runIsActive: runIsActive,),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  PlainSensorOutput(type: 'Accelerometer / Vibration', valueList: _accelerometerValue, runIsActive: runIsActive,),
+                  PlainSensorOutput(type: 'Gyroscope / Rotation', valueList: _rotationValue, runIsActive: runIsActive,),
+                  PlainSensorOutput(type: 'Magnetometer / Compass', valueList: _compassValue, runIsActive: runIsActive,)
+                  ]
+              )
+            )
+          ),
+          if (runIsActive)
+          Expanded(
+            child: Center(
+              child: ValueListenableBuilder<RunPoint?>(
+                valueListenable: runTracker.lastPoint,
+                builder: (context, point, _) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(height: 50,),
+                      if (runIsActive)
+                      BigCard(point: point, runIsActive: runIsActive),
+                    ]
+                  )
+                ),
               ),
-            ),
+            )
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -119,6 +154,46 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 }
 
+class PlainSensorOutput extends StatelessWidget {
+    const PlainSensorOutput({
+      super.key,
+      required this.type,
+      required this.valueList,
+      required this.runIsActive
+    });
+
+    final String type;
+    final List valueList;
+    final bool runIsActive;
+
+    @override
+    Widget build(BuildContext context) {
+          return Column(
+                children: !runIsActive ?
+                [
+                  SizedBox(height: 10),
+                  Text(
+                    type,
+                    style: TextStyle(fontSize: 20),
+                  ),
+                  SizedBox(height: 10),
+                  if (valueList.isNotEmpty)
+                    Text(
+                      'X: ${valueList[0].x.toStringAsFixed(2)}, '
+                      'Y: ${valueList[0].y.toStringAsFixed(2)}, '
+                      'Z: ${valueList[0].z.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 16),
+                    )
+                  else
+                    Text('No data available', style: TextStyle(fontSize: 16)),
+                  SizedBox(height: 10),
+                  ]
+                : [],
+            );
+      }
+  }
+
+
 class BigCard extends StatelessWidget {
     const BigCard({
       super.key,
@@ -132,46 +207,51 @@ class BigCard extends StatelessWidget {
     @override
     Widget build(BuildContext context) {
       var theme = Theme.of(context);
+      final screenSize = MediaQuery.of(context).size;
       var styleHeadline = theme.textTheme.headlineMedium!.copyWith(
-        color: theme.colorScheme.onPrimary
+        color: theme.colorScheme.onPrimary,
       );
       var style = theme.textTheme.bodyLarge!.copyWith(
         color: theme.colorScheme.onPrimary
       );
 
-      return Card(
-        color: theme.colorScheme.primary,
-        margin: EdgeInsets.all(24),
-        elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: !runIsActive
-              ? [
-                  Text("Start a run to see live data.", style: style),
-                ] 
-              : point != null
-              ? [
-                  Text("Last Read Point", style: styleHeadline),
-                  const SizedBox(height: 11),
-                  Text("Time: \n\t ${point!.timestamp.toString().split('.').first}", style: style),
-                  const SizedBox(height: 7),
-                  Text(point!.location.toPrint(), style: style),
-                  const SizedBox(height: 7),
-                  Text("Orientation: \n\t ${point!.orientation}°", style: style),
-                  const SizedBox(height: 7),
-                  Text(point!.vibrationSpec.toPrint(), style: style),
-                  const SizedBox(height: 7),
-                  Text("Speed: \n\t ${point!.speed}", style: style),
-                ]
-              : [
-                  Text("No point was measured so far.", style: style),
-                ],
-          ),
-        ),
-      );
+      return Center(
+          child: SizedBox(
+              width: screenSize.width * 0.8,
+              height: screenSize.height * 0.66,
+              child: Card(
+                color: theme.colorScheme.primary,
+                margin: EdgeInsets.all(24),
+                elevation: 1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: point != null
+                      ? [
+                          Text("Last Read Point", style: styleHeadline),
+                          const SizedBox(height: 11),
+                          Text("Time: \n\t ${point!.timestamp.toString().split('.').first}", style: style),
+                          const SizedBox(height: 7),
+                          Text(point!.location.toPrint(), style: style),
+                          const SizedBox(height: 7),
+                          Text(point!.vibrationSpec.toPrint(), style: style),
+                          const SizedBox(height: 7),
+                          Text(point!.rotationSpec.toPrint(), style: style),
+                          const SizedBox(height: 7),
+                          Text(point!.compassSpec.toPrint(), style: style),
+                          const SizedBox(height: 7),
+                          Text("Speed: \n\t ${point!.speed}", style: style),
+                        ]
+                      : [
+                          Text("No point was measured so far.", style: style),
+                        ],
+                  ),
+                ),
+              ),
+            )
+          );
     }
   }
