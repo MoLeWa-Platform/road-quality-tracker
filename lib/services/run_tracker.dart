@@ -178,13 +178,12 @@ class RunTracker {
     });
   }
   
-  Run endRun() {
+  Run? endRun() {
     activeRun?.endRun();
     runIsActive.value = false;
     lastPoint.value = null;
     clearSensorSnapshots();
-    return activeRun!;
-    
+    return activeRun;
 }
 
   void dispose() {

@@ -3,8 +3,10 @@ import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
 import 'package:road_quality_tracker/models/run_point.dart';
 import '../services/run_tracker.dart';
+import '../services/run_history_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../models/run.dart';
+import 'package:provider/provider.dart';
 
 
 class TrackingPage extends StatefulWidget {
@@ -70,7 +72,12 @@ class _TrackingPageState extends State<TrackingPage> {
   void toggleRun(){
     if (runTracker.isReady) {
         if (runTracker.runIsActive.value) {
-        Run finishedRun = runTracker.endRun();
+        Run? completedRun = runTracker.endRun();
+        
+        if (completedRun != null) {
+          // Save completed run
+          context.read<RunHistoryProvider>().addRun(completedRun);
+        }
       } else {
         runTracker.startRun();
       }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'pages/tracking_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/history_page.dart';
+import '../services/run_history_provider.dart';
 
 
 void main() {
@@ -15,7 +16,7 @@ class RoadQualityTrackerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => GlobalAppState(),
+      create: (context) => RunHistoryProvider(),
       child: MaterialApp(
           title: 'Road Quality Tracker',
           theme: ThemeData(
@@ -26,9 +27,6 @@ class RoadQualityTrackerApp extends StatelessWidget {
         )
     );
   }
-}
-
-class GlobalAppState extends ChangeNotifier {
 }
 
 class HomePage extends StatefulWidget {
@@ -42,7 +40,7 @@ class _HomePageState extends State<HomePage> {
 
   static final List<Widget> _pages = [
     TrackingPage(),
-    LastRunsPage(),
+    HistoryPage(),
     SettingsPage(),
   ];
 
