@@ -4,6 +4,8 @@ import '../services/run_history_provider.dart';
 import '../models/run.dart';
 
 class HistoryPage extends StatefulWidget {
+  const HistoryPage({super.key});
+
   @override
   _HistoryPageState createState() => _HistoryPageState();
 }
@@ -44,17 +46,37 @@ class _HistoryPageState extends State<HistoryPage> {
                     title: Text(run.name),
                     subtitle: Text("Run on ${run.startTime}"),
                     trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
-                          color: run.isSynced ? Colors.green : Colors.grey,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
-                      ],
-                    ),
+                        // mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+                              color: run.isSynced ? Colors.green : Colors.grey,
+                              size: 20,
+                            ),
+                            tooltip: "Sync status",
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints.tightFor(width: 32, height: 32), // 🔧 uniform sizing
+                            onPressed: null, // or show info if you want
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete, size: 20),
+                            tooltip: "Rename run",
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                            onPressed: () => _deleteRun(context, run),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.edit, size: 20),
+                            tooltip: "Rename run",
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                            onPressed: () => _renameRun(context, run),
+                          ),
+                          // Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
+                        ],
+                      ),
                     onTap: () {
                       setState(() {
                         expandedIndex = isExpanded ? null : index;
@@ -100,7 +122,7 @@ class _HistoryPageState extends State<HistoryPage> {
               ElevatedButton.icon(
                 onPressed: hasUnsyncedRuns ? runHistoryProvider.uploadPendingRuns: null,
                 icon: Icon(Icons.upload),
-                label: Text("Upload Unsynced"),
+                label: Text("Upload All Unsynced"),
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   elevation: 3,
@@ -115,13 +137,60 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
 void _renameRun(BuildContext context, Run run) {
-  // placeholder
-  print("Renaming run ${run.name}");
+  final controller = TextEditingController(text: run.name);
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text("Rename Run"),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(hintText: "Enter new name"),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              run.name = controller.text;
+              run.save(); // ✅ persists change if Run extends HiveObject
+              Navigator.pop(context);
+              setState(() {}); // Refresh the UI
+            },
+            child: Text("Save"),
+          )
+        ],
+      );
+    },
+  );
 }
 
-void _deleteRun(Run run) {
-  // placeholder
-  print("Deleting run ${run.name}");
+void _deleteRun(BuildContext context, Run run) {
+  ColorScheme appColorScheme = Theme.of(context).colorScheme;
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text("Delete Run"),
+      content: Text("Are you sure you want to delete:\n\n > ${run.name} ? \n\nThis cannot be undone!"),
+      actions: [
+        TextButton(
+          child: Text("Cancel"),
+          onPressed: () => Navigator.pop(context),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+                  backgroundColor: appColorScheme.secondary,
+                  foregroundColor: appColorScheme.onSecondary),
+          child: Text("Delete"),
+          onPressed: () async {
+            await run.delete(); // 🧨 from Hive
+            Navigator.pop(context);
+            setState(() {}); // 🔁 refresh list
+          },
+        ),
+      ],
+    ),
+  );
 }
 
 void _uploadRun(Run run) {

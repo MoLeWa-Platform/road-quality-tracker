@@ -1,13 +1,29 @@
 
-import 'dart:ffi';
+import 'package:hive/hive.dart';
+import '../models/dimension_spec.dart';
+import '../models/location_spec.dart';
 
-class RunPoint{
+part 'run_point.g.dart';
+
+@HiveType(typeId: 1)
+class RunPoint extends HiveObject {
+  @HiveField(0)
   final DateTime timestamp;
+  
+  @HiveField(1)
   final LocationSpec location;
+  
+  @HiveField(2)
   final DimensionalSpec vibrationSpec;
+  
+  @HiveField(3)
   final DimensionalSpec rotationSpec;
+  
+  @HiveField(4)
   final DimensionalSpec compassSpec;
   //final double orientation;
+  
+  @HiveField(5)
   final double speed;
 
   RunPoint({
@@ -33,46 +49,3 @@ class RunPoint{
   }
 }
 
-class LocationSpec{
-  final double latitude; 
-  final double longitude;
-
-  LocationSpec({
-    required this.latitude, 
-    required this.longitude, 
-  });
-
-  @override
-  String toString() {
-    return "Location <lat: ${latitude.toStringAsFixed(6)}, long: ${longitude.toStringAsFixed(6)}>";
-  }
-  
-  String toPrint() {
-    return "Location: \n\t latitude: ${latitude.toStringAsFixed(6)} \n\t longitude: ${longitude.toStringAsFixed(6)}";
-  }
-
-}
-
-class DimensionalSpec{
-  final String type;
-  final double xCoordinate;
-  final double yCoordinate;
-  final double zCoordinate;
-
-  DimensionalSpec({
-    required this.type,
-    required this.xCoordinate,
-    required this.yCoordinate, 
-    required this.zCoordinate, 
-  });
-
-  @override
-  String toString() {
-    return "$type<x: $xCoordinate, y: $yCoordinate, z: $zCoordinate>";
-  }
-
-  String toPrint() {
-    return "$type: \n\t x: $xCoordinate \n\t y: $yCoordinate \n\t z: $zCoordinate";
-  }
-
-}

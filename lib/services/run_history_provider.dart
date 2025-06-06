@@ -1,13 +1,32 @@
 import 'package:flutter/material.dart';
-import '/../models/run.dart';
+import 'package:hive/hive.dart';
+import '../models/run.dart';
+import 'dart:developer' as dev;
 
 class RunHistoryProvider with ChangeNotifier {
-  final List<Run> _completedRuns = [];
+  final Box<Run> _runBox = Hive.box<Run>('runs');
 
-  List<Run> get completedRuns => _completedRuns;
+  List<Run> get completedRuns => _runBox.values.toList();
 
   void addRun(Run run) {
-    _completedRuns.add(run);
+    dev.log("Persisting run: ${run.name}", name: 'RunHistoryProvider');
+    _runBox.add(run); 
+    dev.log("run box: ${_runBox.length}",  name: 'RunHistoryProvider');
+    notifyListeners();
+  }
+
+  void updateRun(int index, Run updatedRun) {
+    _runBox.putAt(index, updatedRun);
+    notifyListeners();
+  }
+
+  void deleteRun(int index) {
+    _runBox.deleteAt(index);
+    notifyListeners();
+  }
+
+  void clearAllRuns() {
+    _runBox.clear();
     notifyListeners();
   }
 

@@ -2,17 +2,31 @@ import 'package:road_quality_tracker/models/run_point.dart';
 import 'dart:math';
 import 'dart:developer' as dev;
 import 'package:intl/intl.dart';
+import 'package:hive/hive.dart';
 
-class Run {
+part 'run.g.dart';
+
+@HiveType(typeId: 0)
+class Run extends HiveObject {
+  @HiveField(0)
   String name;
+
+  @HiveField(1)
   final String id;
+
+  @HiveField(2)
   final DateTime startTime;
+
+  @HiveField(3)
   DateTime? endTime; 
+  
+  @HiveField(4)
   final List<RunPoint> runPoints;
+  
+  @HiveField(5)
   bool isSynced;
 
-
-  Run._({
+  Run({
     required this.name,
     required this.id,
     required this.startTime,
@@ -28,7 +42,7 @@ class Run {
     final String formatted = formatter.format(startTime);
 
     dev.log('created RUN!', name: 'Run');
-    return Run._(
+    return Run(
       name: formatted,
       id: id,
       startTime: startTime,

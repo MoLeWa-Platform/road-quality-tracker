@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'pages/tracking_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/history_page.dart';
 import '../services/run_history_provider.dart';
+import 'models/run.dart';
+import 'models/run_point.dart';
+import 'models/location_spec.dart';
+import 'models/dimension_spec.dart';
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
-  runApp(RoadQualityTrackerApp());
+  await Hive.initFlutter();
+  Hive.registerAdapter(RunAdapter());
+  Hive.registerAdapter(RunPointAdapter());
+  Hive.registerAdapter(DimensionalSpecAdapter());
+  Hive.registerAdapter(LocationSpecAdapter());
+  await Hive.openBox<Run>('runs');
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => RunHistoryProvider(),
+      child: RoadQualityTrackerApp(), // replace with your root widget
+    ),
+  );
 }
 
 class RoadQualityTrackerApp extends StatelessWidget {

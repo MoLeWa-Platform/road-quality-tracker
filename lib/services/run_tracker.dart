@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:async';
 import 'dart:developer' as dev;
 import '../models/run.dart';
 import '../models/run_point.dart';
+import '../models/location_spec.dart';
+import '../models/dimension_spec.dart';
 import '../models/sensor_snapshot.dart';
 import 'dart:math';
 
@@ -43,7 +44,7 @@ class RunTracker {
         throw ('Locationservice couldnt be enabled!');
       }
     }
-    dev.log("service enabled: $serviceEnabled", name: 'RunTracker');
+    //dev.log("service enabled: $serviceEnabled", name: 'RunTracker');
 
     PermissionStatus permissionGranted = await _locationService.hasPermission();
     if (permissionGranted == PermissionStatus.denied) {
@@ -52,19 +53,19 @@ class RunTracker {
         throw ('Access rights are missing for the phones location data!');
       }
     }
-    dev.log('permission granted: $permissionGranted', name: 'RunTracker');
+    //dev.log('permission granted: $permissionGranted', name: 'RunTracker');
     _locationService.changeSettings(interval: 2000, accuracy: LocationAccuracy.high);
     
     _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
       Future.microtask(() => onNewLocationPoint(locationData));
     });
 
-    dev.log('subscribed to location Updates', name: 'RunTracker');
+    //dev.log('subscribed to location Updates', name: 'RunTracker');
     isReady = true;
   }
 
   void onNewLocationPoint(LocationData locationData){
-    dev.log("$locationData", name: 'RunTracker');
+    //dev.log("$locationData", name: 'RunTracker');
     saveNewLocation(locationData);
     if (runIsActive.value) {
       addNewPoint();
@@ -83,16 +84,16 @@ class RunTracker {
           updateSpeed();
         }
 
-        dev.log("Current Location updated ${loc.latitude}, ${loc.longitude}", name: 'RunTracker');
-        dev.log("Current Location Snapshot ${_currentLocation.timestamp}, ${_currentLocation.value.toString()}", name: 'RunTracker');
-        dev.log("Last Location Snapshot ${_lastLocation.timestamp}, ${_lastLocation.value.toString()}", name: 'RunTracker');
+        //dev.log("Current Location updated ${loc.latitude}, ${loc.longitude}", name: 'RunTracker');
+        //dev.log("Current Location Snapshot ${_currentLocation.timestamp}, ${_currentLocation.value.toString()}", name: 'RunTracker');
+        //dev.log("Last Location Snapshot ${_lastLocation.timestamp}, ${_lastLocation.value.toString()}", name: 'RunTracker');
         return true;
       }
       return false;
   }
 
   void addNewPoint(){
-    dev.log('trying to add new point ${_currentLocation.value}, ${_currentLocation.timestamp}', name: 'RunTracker');
+    //dev.log('trying to add new point ${_currentLocation.value}, ${_currentLocation.timestamp}', name: 'RunTracker');
     final now = DateTime.now();
     final threshold = Duration(milliseconds: 1000);
 
@@ -106,7 +107,7 @@ class RunTracker {
         speed: _speed.value!,
       );
 
-      dev.log('added $point', name: 'RunTracker');
+      //dev.log('added $point', name: 'RunTracker');
 
       activeRun?.addPoint(point);
       lastPoint.value = point;
@@ -129,36 +130,36 @@ class RunTracker {
   }
 
   void onVibrationEvent(event){
-    dev.log("Got vibration event: x=${event.x}", name: 'RunTracker');
+    //dev.log("Got vibration event: x=${event.x}", name: 'RunTracker');
     _vibration = _vibration.update(DimensionalSpec(
       type: 'Vibration',
       xCoordinate: event.x,
       yCoordinate: event.y,
       zCoordinate: event.z,
     ));
-    dev.log('new vibration: ${_vibration.timestamp}, ${_vibration.value}', name: 'RunTracker');
+    //dev.log('new vibration: ${_vibration.timestamp}, ${_vibration.value}', name: 'RunTracker');
   }
 
   void onRotationEvent(event){
-    dev.log("Got Rotation event: x=${event.x}", name: 'RunTracker');
+    //dev.log("Got Rotation event: x=${event.x}", name: 'RunTracker');
     _rotation = _rotation.update(DimensionalSpec(
       type: 'Rotation',
       xCoordinate: event.x,
       yCoordinate: event.y,
       zCoordinate: event.z,
     ));
-    dev.log('new Rotation: ${_rotation.timestamp}, ${_rotation.value}', name: 'RunTracker');
+    //dev.log('new Rotation: ${_rotation.timestamp}, ${_rotation.value}', name: 'RunTracker');
   }
 
   void onCompassEvent(event){
-    dev.log("Got Compass event: x=${event.x}", name: 'RunTracker');
+    //dev.log("Got Compass event: x=${event.x}", name: 'RunTracker');
     _compass = _compass.update(DimensionalSpec(
       type: 'Compass',
       xCoordinate: event.x,
       yCoordinate: event.y,
       zCoordinate: event.z,
     ));
-    dev.log('new Compass: ${_compass.timestamp}, ${_compass.value}', name: 'RunTracker');
+    //dev.log('new Compass: ${_compass.timestamp}, ${_compass.value}', name: 'RunTracker');
   }
 
   void clearSensorSnapshots(){
@@ -170,10 +171,9 @@ class RunTracker {
 
   void startRun() async {
     Future.microtask(() => {
-      dev.log("starting run!", name: 'RunTracker'),
+      //dev.log("starting run!", name: 'RunTracker'),
       activeRun = Run.create(DateTime.now()),
       runIsActive.value = true,
-      dev.log("in startrun!", name: 'RunTracker'),
       addNewPoint(),
     });
   }
@@ -216,7 +216,7 @@ class RunTracker {
 
     _speed = _speed.update(speedMetersPerSecond);
 
-    dev.log('Calculated speed: ${speedMetersPerSecond.toStringAsFixed(2)} m/s', name: 'RunTracker');
+    //dev.log('Calculated speed: ${speedMetersPerSecond.toStringAsFixed(2)} m/s', name: 'RunTracker');
   }
 
   // Helper function for Haversine distance in meters
