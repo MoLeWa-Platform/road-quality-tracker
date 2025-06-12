@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../services/run_history_provider.dart';
 import '../models/run.dart';
 
+enum SelectionType { none, upload, download }
+
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
@@ -11,128 +13,269 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
+  RunHistoryProvider? runHistoryProvider;
+  List<Run>? completedRuns;
+  bool? hasUnsyncedRuns;
+  
   int? expandedIndex;
+  
+  SelectionType selectionType = SelectionType.none;
+  Set<String> selectedRunIds = {};
 
-  void _showDownloadDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text("Download Runs"),
-        content: Text("Select runs to download (not implemented yet)."),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text("OK"))],
-      ),
-    );
+  void _uploadRuns(){
+    setState(() {
+      if (selectionType != SelectionType.upload) {
+        selectionType = SelectionType.upload;
+        selectedRunIds = 
+          completedRuns!
+          .where((r) => !r.isSynced)
+          .map((r) => r.id)
+          .toSet();
+      } else {
+        selectionType = SelectionType.none;
+        selectedRunIds.clear();
+      }
+    });
   }
+
+
+void _downloadRuns() {
+    setState(() {
+    if (selectionType != SelectionType.download) {
+      selectionType = SelectionType.download;
+      selectedRunIds = completedRuns!.map((r) => r.id).toSet(); // select all by default
+    } else {
+      selectionType = SelectionType.none;
+      selectedRunIds.clear();
+    }
+  });
+}
 
   @override
   Widget build(BuildContext context) {
-    final RunHistoryProvider runHistoryProvider = context.watch<RunHistoryProvider>();
-    final List<Run> completedRuns = runHistoryProvider.completedRuns.reversed.toList();
-    final hasUnsyncedRuns = completedRuns.any((run) => !run.isSynced);
+    runHistoryProvider = context.watch<RunHistoryProvider>();
+    completedRuns = runHistoryProvider!.completedRuns.reversed.toList();
+    hasUnsyncedRuns = completedRuns!.any((run) => !run.isSynced);
 
     return Scaffold(
-      appBar: AppBar(title: Text("Run History")),
-      body: Stack(
+      appBar: AppBar(title: selectionType == SelectionType.none 
+      ? Text("Run History") 
+      : selectionType == SelectionType.upload ? Text("Upload Runs") : Text("Download Runs")),
+      body: Column(
         children: [
-          ListView.builder(
-            itemCount: completedRuns.length,
-            itemBuilder: (context, index) {
-              final run = completedRuns[index];
-              final isExpanded = expandedIndex == index;
-          
-              return Column(
-                children: [
-                  ListTile(
-                    title: Text(run.name),
-                    subtitle: Text("Run on ${run.startTime}"),
-                    trailing: Row(
-                        // mainAxisAlignment: MainAxisAlignment.end,
+          if (selectionType != SelectionType.none)
+              Material(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        selectionType == SelectionType.upload
+                        ? Icons.cloud_upload
+                        : Icons.download,
+                        color: Theme.of(context).colorScheme.onSecondaryContainer,
+                        size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          selectionType == SelectionType.upload
+                              ? "Select the runs you want to upload."
+                              : "Select the runs you want to download.",
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: completedRuns!.length,
+              itemBuilder: (context, index) {
+                final run = completedRuns![index];
+                final isExpanded = expandedIndex == index;
+                return Column(
+                  children: [
+                    ListTile(
+                      title: Text(run.name),
+                      subtitle: Text("Run on ${run.startTime}"),
+                      trailing: selectionType != SelectionType.none
+                      ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: Icon(
-                              run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
-                              color: run.isSynced ? Colors.green : Colors.grey,
-                              size: 20,
+                              icon: Icon(
+                                run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+                                color: run.isSynced ? Colors.green : Colors.grey,
+                                size: 20,
+                              ),
+                              tooltip: "Sync status",
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints.tightFor(width: 32, height: 32), // 🔧 uniform sizing
+                              onPressed: null, // or show info if you want
                             ),
-                            tooltip: "Sync status",
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints.tightFor(width: 32, height: 32), // 🔧 uniform sizing
-                            onPressed: null, // or show info if you want
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete, size: 20),
-                            tooltip: "Rename run",
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints.tightFor(width: 32, height: 32),
-                            onPressed: () => _deleteRun(context, run),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.edit, size: 20),
-                            tooltip: "Rename run",
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints.tightFor(width: 32, height: 32),
-                            onPressed: () => _renameRun(context, run),
-                          ),
-                          // Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
+                          Checkbox(
+                              value: selectedRunIds.contains(run.id),
+                              onChanged: (checked) {
+                                setState(() {
+                                  if (checked == true) {
+                                    selectedRunIds.add(run.id);
+                                  } else {
+                                    selectedRunIds.remove(run.id);
+                                  }
+                                });
+                              },
+                            ),
                         ],
-                      ),
-                    onTap: () {
-                      setState(() {
-                        expandedIndex = isExpanded ? null : index;
-                      });
-                    },
-                  ),
-                  if (isExpanded)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 40.0, top: 8.0, bottom: 8.0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      ) 
+                        : Row(
+                          // mainAxisAlignment: MainAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text("Duration: ${run.endTime?.difference(run.startTime) ?? Duration.zero}"),
-                            Text("Points: ${run.runPoints.length}"),
-                            Text("Additional details coming soon...", style: TextStyle(color: Colors.grey)),
+                            IconButton(
+                              icon: Icon(
+                                run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+                                color: run.isSynced ? Colors.green : Colors.grey,
+                                size: 20,
+                              ),
+                              tooltip: "Sync status",
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints.tightFor(width: 32, height: 32), // 🔧 uniform sizing
+                              onPressed: null, // or show info if you want
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, size: 20),
+                              tooltip: "Rename run",
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                              onPressed: () => _deleteRun(context, run),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.edit, size: 20),
+                              tooltip: "Rename run",
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                              onPressed: () => _renameRun(context, run),
+                            ),
+                            // Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
                           ],
                         ),
-                      ),
+                      onTap: () {
+                        setState(() {
+                          expandedIndex = isExpanded ? null : index;
+                        });
+                      },
                     ),
-                  Divider(),
-                ],
-              );
-            },
+                    if (isExpanded)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 40.0, top: 8.0, bottom: 8.0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Duration: ${run.endTime?.difference(run.startTime) ?? Duration.zero}"),
+                              Text("Points: ${run.runPoints.length}"),
+                              // FlutterMap(
+                              //   options: MapOptions(
+                              //     initialCenter: LatLng(51.509364, -0.128928), // Center the map over London
+                              //     initialZoom: 9.2,
+                              //   ),
+                              //   children: [
+                              //     TileLayer( // Bring your own tiles
+                              //       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // For demonstration only
+                              //       userAgentPackageName: 'com.example.road_quality_tracker', // Add your app identifier
+                              //       // And many more recommended properties!
+                              //     ),
+                              //     RichAttributionWidget( // Include a stylish prebuilt attribution widget that meets all requirments
+                              //       attributions: [
+                              //         TextSourceAttribution(
+                              //           'OpenStreetMap contributors',
+                              //           //onTap: () => launchUrl(Uri.parse('https://openstreetmap.org/copyright')), // (external)
+                              //         ),
+                              //         // Also add images...
+                              //       ],
+                              //     ),
+                              //   ],
+                              // ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Divider(),
+                  ],
+                );
+              },
+            ),
           ),
+          SizedBox(height: 15),
           Positioned(
           bottom: 20,
           left: 20,
           right: 20,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => _showDownloadDialog(context),
-                icon: Icon(Icons.download),
-                label: Text("Download Runs"),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  elevation: 3,
+          child: selectionType == SelectionType.none
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: completedRuns!.isNotEmpty ? _downloadRuns : null,
+                  icon: Icon(Icons.download),
+                  label: Text("Download Runs"),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    elevation: 3,
+                  ),
                 ),
-              ),
-              ElevatedButton.icon(
-                onPressed: hasUnsyncedRuns ? runHistoryProvider.uploadPendingRuns: null,
-                icon: Icon(Icons.upload),
-                label: Text("Upload All Unsynced"),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  elevation: 3,
+                ElevatedButton.icon(
+                  onPressed: completedRuns!.isNotEmpty ? _uploadRuns: null, //hasUnsyncedRuns! ? _uploadRuns: null,
+                  icon: Icon(Icons.upload),
+                  label: Text("Upload Unsynced"),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    elevation: 3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            )
+            : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      selectionType = SelectionType.none;
+                      selectedRunIds.clear();
+                    });
+                  },
+                  icon: Icon(Icons.close),
+                  label: Text("Cancel"),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (selectionType == SelectionType.upload) {
+                      context.read<RunHistoryProvider>().uploadSelectedRuns(context, selectedRunIds);
+                    } else if (selectionType == SelectionType.download) {
+                      context.read<RunHistoryProvider>().downloadSelectedRuns(context, selectedRunIds);
+                    }
+                    setState(() {
+                      selectionType = SelectionType.none;
+                      selectedRunIds.clear();
+                    });
+                  },
+                  icon: Icon(selectionType == SelectionType.upload ? Icons.upload : Icons.download),
+                  label: Text(selectionType == SelectionType.upload ? "Submit Upload" : "Download Runs"),
+                  style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary),
+                ),
+              ]),
           ),
-        ),
-        ],
-      ),
+        SizedBox(height: 20),
+      ])
     );
   }
 
@@ -191,16 +334,6 @@ void _deleteRun(BuildContext context, Run run) {
       ],
     ),
   );
-}
-
-void _uploadRun(Run run) {
-  // placeholder
-  print("Uploading run ${run.name}");
-}
-
-void _downloadRun(Run run) {
-  // placeholder
-  print("Downloading run ${run.name}");
 }
 
 }

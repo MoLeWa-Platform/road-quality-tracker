@@ -64,4 +64,12 @@ class Run extends HiveObject {
   void setName(String name){
     this.name = name;
   }
+
+  Map<String, dynamic> toJson() => {
+  'id': id,
+  'name': name,
+  'startTime': startTime.toIso8601String(),
+  'endTime': endTime?.toIso8601String(),
+  'points': runPoints.map((p) => p.toJson()).toList(),
+  };
 }

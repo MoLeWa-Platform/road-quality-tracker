@@ -47,5 +47,14 @@ class RunPoint extends HiveObject {
       //"\nOrientation: $orientation°"
       "\nSpeed: $speed");
   }
+
+  Map<String, dynamic> toJson() => {
+    'timestamp': timestamp.toIso8601String(),
+    'speed': speed,
+    'location' : location.toJson(),
+    'vibration': vibrationSpec.toJson(), 
+    'rotation': rotationSpec.toJson(),
+    'compass': compassSpec.toJson(), 
+  };
 }
 

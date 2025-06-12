@@ -28,4 +28,11 @@ class DimensionalSpec extends HiveObject{
   String toPrint() {
     return "$type: \n\t x: $xCoordinate \n\t y: $yCoordinate \n\t z: $zCoordinate";
   }
+
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'x': xCoordinate,
+    'y': yCoordinate,
+    'z': zCoordinate,
+  };
 }
