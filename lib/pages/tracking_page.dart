@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
+import 'package:road_quality_tracker/models/dimension_spec.dart';
 import 'package:road_quality_tracker/models/run_point.dart';
 import '../services/run_tracker.dart';
 import '../services/run_history_provider.dart';
@@ -131,7 +132,7 @@ class _TrackingPageState extends State<TrackingPage> {
                     children: [
                       SizedBox(height: 50,),
                       if (runIsActive)
-                      BigCard(point: point, runIsActive: runIsActive),
+                      buildLiveSensorCard(context, point),
                     ]
                   )
                 ),
@@ -199,66 +200,93 @@ class PlainSensorOutput extends StatelessWidget {
             );
       }
   }
+Widget buildLiveSensorCard(BuildContext context, RunPoint? point) {
+  final labelStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600);
+  final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87);
+  final monoStyle = TextStyle(fontFamily: 'monospace', color: Colors.black87);
 
+  Widget buildRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: labelStyle),
+          Text(value ?? '--', style: valueStyle),
+        ],
+      ),
+    );
+  }
 
-class BigCard extends StatelessWidget {
-    const BigCard({
-      super.key,
-      required this.point,
-      required this.runIsActive,
-    });
+  Widget buildVectorRow(String label, DimensionalSpec? v) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: labelStyle),
+          SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("\t x: ${v?.xCoordinate.toStringAsFixed(2) ?? '0.00'}", style: monoStyle),
+              Text("y: ${v?.yCoordinate.toStringAsFixed(2) ?? '0.00'}", style: monoStyle),
+              Text("z: ${v?.zCoordinate.toStringAsFixed(2) ?? '0.00'}", style: monoStyle),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-    final RunPoint? point;
-    final bool runIsActive;
-
-    @override
-    Widget build(BuildContext context) {
-      var theme = Theme.of(context);
-      final screenSize = MediaQuery.of(context).size;
-      var styleHeadline = theme.textTheme.headlineMedium!.copyWith(
-        color: theme.colorScheme.onPrimary,
-      );
-      var style = theme.textTheme.bodyLarge!.copyWith(
-        color: theme.colorScheme.onPrimary
-      );
-
-      return Center(
-          child: SizedBox(
-              width: screenSize.width * 0.8,
-              height: screenSize.height * 0.66,
-              child: Card(
-                color: theme.colorScheme.primary,
-                margin: EdgeInsets.all(24),
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: point != null
-                      ? [
-                          Text("Last Read Point", style: styleHeadline),
-                          const SizedBox(height: 11),
-                          Text("Time: \n\t ${point!.timestamp.toString().split('.').first}", style: style),
-                          const SizedBox(height: 7),
-                          Text(point!.location.toPrint(), style: style),
-                          const SizedBox(height: 7),
-                          Text(point!.vibrationSpec.toPrint(), style: style),
-                          const SizedBox(height: 7),
-                          Text(point!.rotationSpec.toPrint(), style: style),
-                          const SizedBox(height: 7),
-                          Text(point!.compassSpec.toPrint(), style: style),
-                          const SizedBox(height: 7),
-                          Text("Speed: \n\t ${point!.speed}", style: style),
-                        ]
-                      : [
-                          Text("No point was measured so far.", style: style),
-                        ],
-                  ),
+  return Card(
+    margin: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    elevation: 3,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Last Point", style: Theme.of(context).textTheme.titleLarge),
+          Divider(),
+          buildRow("Time", point?.timestamp.toString()),
+          buildRow("Speed", "${point?.speed.toStringAsFixed(1) ?? '0.0'} m/s"),
+          SizedBox(height: 4),
+          Text("Location", style: labelStyle),
+          SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("\t Latitude:"),
+              Expanded(
+                child: Text(
+                  point?.location.latitude.toStringAsFixed(6) ?? '--',
+                  textAlign: TextAlign.right,
+                  style: monoStyle,
                 ),
               ),
-            )
-          );
-    }
-  }
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("\t Longitude:"),
+              Expanded(
+                child: Text(
+                  point?.location.longitude.toStringAsFixed(6) ?? '--',
+                  textAlign: TextAlign.right,
+                  style: monoStyle,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          buildVectorRow("Vibration", point?.vibrationSpec),
+          buildVectorRow("Compass", point?.compassSpec),
+          buildVectorRow("Rotation", point?.rotationSpec),
+        ],
+      ),
+    ),
+  );
+}
