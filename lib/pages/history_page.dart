@@ -38,18 +38,22 @@ class _HistoryPageState extends State<HistoryPage> {
     });
   }
 
+  void _downloadRuns() {
+      setState(() {
+      if (selectionType != SelectionType.download) {
+        selectionType = SelectionType.download;
+        selectedRunIds = completedRuns!.map((r) => r.id).toSet(); // select all by default
+      } else {
+        selectionType = SelectionType.none;
+        selectedRunIds.clear();
+      }
+    });
+  }
 
-void _downloadRuns() {
-    setState(() {
-    if (selectionType != SelectionType.download) {
-      selectionType = SelectionType.download;
-      selectedRunIds = completedRuns!.map((r) => r.id).toSet(); // select all by default
-    } else {
-      selectionType = SelectionType.none;
-      selectedRunIds.clear();
-    }
-  });
-}
+  bool _areAllSelected() {
+    final allIds = completedRuns!.map((r) => r.id).toSet();
+    return selectedRunIds.containsAll(allIds) && allIds.isNotEmpty;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,24 +74,50 @@ void _downloadRuns() {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        selectionType == SelectionType.upload
-                        ? Icons.cloud_upload
-                        : Icons.download,
-                        color: Theme.of(context).colorScheme.onSecondaryContainer,
-                        size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          selectionType == SelectionType.upload
-                              ? "Select the runs you want to upload."
-                              : "Select the runs you want to download.",
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      Row(
+                        children: [
+                          Icon(
+                            selectionType == SelectionType.upload
+                                ? Icons.cloud_upload
+                                : Icons.download,
                             color: Theme.of(context).colorScheme.onSecondaryContainer,
+                            size: 20,
                           ),
-                        ),
+                          SizedBox(width: 10),
+                          Text(
+                            selectionType == SelectionType.upload
+                                ? "Select runs to upload."
+                                : "Select runs to download.",
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                ),
+                          ),
+                        ],
                       ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            "Select all",
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
+                          ),
+                          Checkbox(
+                            value: _areAllSelected(),
+                            onChanged: (checked) {
+                              setState(() {
+                                if (checked == true) {
+                                  selectedRunIds = completedRuns!.map((r) => r.id).toSet();
+                                } else {
+                                  selectedRunIds.clear();
+                                }
+                              });
+                            },
+                          ),
+                          SizedBox(width: 8),
+                        ],
+                      )
                     ],
                   ),
                 ),
