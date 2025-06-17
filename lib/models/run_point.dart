@@ -49,7 +49,7 @@ class RunPoint extends HiveObject {
   }
 
   Map<String, dynamic> toJson() => {
-    'timestamp': timestamp.toIso8601String(),
+    'timestamp': toIsoWithOffset(timestamp),
     'speed': speed,
     'location' : location.toJson(),
     'vibration': vibrationSpec.toJson(), 
@@ -57,4 +57,17 @@ class RunPoint extends HiveObject {
     'compass': compassSpec.toJson(), 
   };
 }
+
+  String toIsoWithOffset(DateTime? dt) {
+    if (dt != null){
+      final duration = dt.timeZoneOffset;
+      final hours = duration.inHours.abs().toString().padLeft(2, '0');
+      final minutes = (duration.inMinutes.abs() % 60).toString().padLeft(2, '0');
+      final sign = duration.isNegative ? '-' : '+';
+
+      final iso = dt.toIso8601String();
+      return '$iso$sign$hours:$minutes';
+    }
+    return '';
+  }
 

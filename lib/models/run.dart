@@ -36,7 +36,7 @@ class Run extends HiveObject {
 
   factory Run.create(DateTime startTime) {
     final rand = Random(10218).nextInt(10000);
-    final id = '${startTime.toIso8601String()}_$rand';
+    final id = '${toIsoWithOffset(startTime)}_$rand';
     
     final DateFormat formatter = DateFormat('EEEE, dd.MM.yyyy HH:mm:ss');
     final String formatted = formatter.format(startTime);
@@ -68,8 +68,8 @@ class Run extends HiveObject {
   Map<String, dynamic> toJson() => {
   'id': id,
   'name': name,
-  'startTime': startTime.toIso8601String(),
-  'endTime': endTime?.toIso8601String(),
+  'startTime': toIsoWithOffset(startTime),
+  'endTime': toIsoWithOffset(endTime),
   'points': runPoints.map((p) => p.toJson()).toList(),
   };
 }

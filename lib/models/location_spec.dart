@@ -25,8 +25,8 @@ class LocationSpec extends HiveObject{
   }
 
   Map<String, dynamic> toJson() => {
-    'latitude': latitude,
-    'longitude': longitude,
+    'lat': latitude,
+    'lon': longitude,
   };
 
 }

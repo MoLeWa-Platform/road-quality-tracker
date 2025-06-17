@@ -30,7 +30,7 @@ class DimensionalSpec extends HiveObject{
   }
 
   Map<String, dynamic> toJson() => {
-    'type': type,
+    //'type': type,
     'x': xCoordinate,
     'y': yCoordinate,
     'z': zCoordinate,

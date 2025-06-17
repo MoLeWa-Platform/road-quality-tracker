@@ -117,6 +117,12 @@ class RunHistoryProvider with ChangeNotifier {
 
   String buildJsonDownload(List<Run> downloadRuns) {
     final jsonList = downloadRuns.map((run) => run.toJson()).toList();
-    return jsonEncode({'runs': jsonList});
+
+    final encoder = JsonEncoder.withIndent('  ');
+    final prettyJson = encoder.convert({'runs': jsonList});
+    dev.log(prettyJson, name: 'RunHistoryProvider');
+
+    final msg = jsonEncode({'runs': jsonList});
+    return msg;
   }
 }
