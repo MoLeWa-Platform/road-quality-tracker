@@ -52,78 +52,122 @@ class _TrackingPageState extends State<TrackingPage> {
   @override
   Widget build(BuildContext context) {
     ColorScheme appColorScheme = Theme.of(context).colorScheme;
-    
     return ValueListenableBuilder<bool>(
-        valueListenable: runTracker.runIsActive,
-        builder: (context, runIsActive, _) {
-      String buttonText = runIsActive ?      'END RUN' :                 'START RUN';
-      Color buttonColor = runIsActive ?      appColorScheme.secondary:   appColorScheme.primary;
-      Color buttonTextColor = runIsActive ?  appColorScheme.onSecondary: appColorScheme.onPrimary;
+      valueListenable: runTracker.runIsActive,
+      builder: (context, runIsActive, _) {
+        String buttonText = runIsActive ? 'END RUN' : 'START RUN';
+        Color buttonColor = runIsActive ? appColorScheme.secondary : appColorScheme.primary;
+        Color buttonTextColor = runIsActive ? appColorScheme.onSecondary : appColorScheme.onPrimary;
 
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (!runIsActive)
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ValueListenableBuilder<LocationSpec?>(
-                    valueListenable: runTracker.currentRawLocation,
-                    builder: (context, loc, _) {
-                      return PlainCoordinateOutput(location: loc);
-                    },
-                  ),
-                  ValueListenableBuilder<List<AccelerometerEvent>>(
-                    valueListenable: runTracker.currentRawVibration,
-                    builder: (context, vib, _) {
-                      return PlainSensorOutput(type: 'Accelerometer / Vibration', valueList: vib, runIsActive: runIsActive,);
-                    },
-                  ),
-                  ]
-              )
-            )
-          ),
-          if (runIsActive)
-          Expanded(
-            child: Center(
-              child: ValueListenableBuilder<RunPoint?>(
-                valueListenable: runTracker.lastPoint,
-                builder: (context, point, _) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(height: 50,),
-                      if (runIsActive)
-                      buildLiveSensorCard(context, point),
-                    ]
-                  )
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 90.0, left: 16.0, right: 16.0, bottom: 16.0),
+                child: Column(
+                  children: [
+                    if (!runIsActive) ...[
+                      Text(
+                        'Start a Run to Begin Tracking!',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Currently showing connected sensors…',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 25),
+                    ],
+                    if (runIsActive) ...[
+                      Text(
+                        'Tracking in Progress',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Monitoring movement and location…',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 25),
+                    ],
+                  ],
                 ),
               ),
-            )
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                onPressed: () {toggleRun();}, 
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: buttonColor,
-                  foregroundColor: buttonTextColor,
-                  textStyle: Theme.of(context).textTheme.titleMedium,
-                  elevation: 7,
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  shape: const StadiumBorder(),
+            ),
+            if (!runIsActive)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(height: 50),
+                      ValueListenableBuilder<LocationSpec?>(
+                        valueListenable: runTracker.currentRawLocation,
+                        builder: (context, loc, _) {
+                          return PlainCoordinateOutput(location: loc);
+                        },
+                      ),
+                      ValueListenableBuilder<List<AccelerometerEvent>>(
+                        valueListenable: runTracker.currentRawVibration,
+                        builder: (context, vib, _) {
+                          return PlainSensorOutput(
+                            type: 'Accelerometer / Vibration',
+                            valueList: vib,
+                            runIsActive: runIsActive,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                child: Text(buttonText)),
-            ],
-          ),
-          SizedBox(height: 50),
-        ],
-      );
-    },);
+              ),
+            if (runIsActive)
+              Expanded(
+                child: Center(
+                  child: ValueListenableBuilder<RunPoint?>(
+                    valueListenable: runTracker.lastPoint,
+                    builder: (context, point, _) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 50),
+                          if (runIsActive) buildLiveSensorCard(context, point),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    toggleRun();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    foregroundColor: buttonTextColor,
+                    textStyle: Theme.of(context).textTheme.titleMedium,
+                    elevation: 7,
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(buttonText),
+                ),
+              ],
+            ),
+            SizedBox(height: 50),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -135,20 +179,20 @@ class PlainCoordinateOutput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
+          children: [
+        SizedBox(height: 50),
+        Text('Current Location', style: TextStyle(fontSize: 22)),
         SizedBox(height: 10),
-        Text('Current Location', style: TextStyle(fontSize: 20)),
+            if (location != null)
+              Text(
+                'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              )
+            else
+              Text('No location yet', style: TextStyle(fontSize: 16)),
         SizedBox(height: 10),
-        if (location != null)
-          Text(
-            'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
-            style: TextStyle(fontSize: 16),
-            textAlign: TextAlign.center,
-          )
-        else
-          Text('No location yet', style: TextStyle(fontSize: 16)),
-        SizedBox(height: 10),
-      ],
+          ],
     );
   }
 }
@@ -173,23 +217,23 @@ class PlainSensorOutput extends StatelessWidget {
                   SizedBox(height: 10),
                   Text(
                     type,
-                    style: TextStyle(fontSize: 20),
+                    style: TextStyle(fontSize: 22),
                   ),
                   SizedBox(height: 10),
-                  if (valueList.isNotEmpty)
-                    Text(
-                      'X: ${valueList[0].x.toStringAsFixed(2)}, '
-                      'Y: ${valueList[0].y.toStringAsFixed(2)}, '
-                      'Z: ${valueList[0].z.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 16),
-                    )
-                  else
-                    Text('No data available', style: TextStyle(fontSize: 16)),
+                    if (valueList.isNotEmpty)
+                      Text(
+                        'X: ${valueList[0].x.toStringAsFixed(2)}, '
+                        'Y: ${valueList[0].y.toStringAsFixed(2)}, '
+                        'Z: ${valueList[0].z.toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 16),
+                      )
+                    else
+                      Text('No data available', style: TextStyle(fontSize: 16)),
                   SizedBox(height: 10),
                   ]
                 : [],
             );
-      }
+    }
   }
 
 Widget buildLiveSensorCard(BuildContext context, RunPoint? point) {
