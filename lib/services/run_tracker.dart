@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
+import 'dart:math';
 import 'dart:async';
 import 'dart:developer' as dev;
 import '../models/run.dart';
@@ -8,27 +10,29 @@ import '../models/run_point.dart';
 import '../models/location_spec.dart';
 import '../models/dimension_spec.dart';
 import '../models/sensor_snapshot.dart';
-import 'dart:math';
+import '../services/rotation_vector_stream.dart';
 
 class RunTracker {
   Run? activeRun;
   bool isReady = false;
   final ValueNotifier<bool> runIsActive = ValueNotifier<bool>(false);
   final ValueNotifier<RunPoint?> lastPoint = ValueNotifier(null);
-  
-  SensorSnapshot<LocationSpec> _lastLocation = SensorSnapshot();
+  final ValueNotifier<LocationSpec?> currentRawLocation = ValueNotifier(null);
+  final ValueNotifier<List<AccelerometerEvent>> currentRawVibration = ValueNotifier([]);
 
+
+  SensorSnapshot<LocationSpec> _lastLocation = SensorSnapshot();
   SensorSnapshot<LocationSpec> _currentLocation = SensorSnapshot();
   SensorSnapshot<DimensionalSpec> _vibration = SensorSnapshot();
-  SensorSnapshot<DimensionalSpec> _rotation = SensorSnapshot();
-  SensorSnapshot<DimensionalSpec> _compass = SensorSnapshot();
   SensorSnapshot<double> _speed = SensorSnapshot();
 
-  List<double>? quaternion;
+  List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
   vm.Matrix3 _rotationMatrix = vm.Matrix3.identity();
   
   final Location _locationService = Location();
   late StreamSubscription<LocationData>? _locationSubscription;
+  late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
+  late StreamSubscription<List<double>>? _rotationSub;
 
   RunTracker._();
 
@@ -37,7 +41,22 @@ class RunTracker {
     Future.microtask(()=> 
       tracker._startLocationWatch()
     );
+    tracker.subscribeToSensors();
     return tracker;
+  }
+
+  void subscribeToSensors(){
+    dev.log('Subcribing to sensors', name: 'RunTracker');
+    _accelerometerSubscription = accelerometerEvents.listen((event) {
+      currentRawVibration.value = [event];
+      onVibrationEvent(event);
+    });
+    _rotationSub = RotationVectorStream.stream.listen((values) {
+      if (values.length >= 4) {
+        _rotationQuaternion = values;
+        onQuanternionEvent(values);
+      }
+    });
   }
 
   void _startLocationWatch() async {
@@ -48,7 +67,6 @@ class RunTracker {
         throw ('Locationservice couldnt be enabled!');
       }
     }
-    //dev.log("service enabled: $serviceEnabled", name: 'RunTracker');
 
     PermissionStatus permissionGranted = await _locationService.hasPermission();
     if (permissionGranted == PermissionStatus.denied) {
@@ -57,19 +75,15 @@ class RunTracker {
         throw ('Access rights are missing for the phones location data!');
       }
     }
-    //dev.log('permission granted: $permissionGranted', name: 'RunTracker');
     _locationService.changeSettings(interval: 2000, accuracy: LocationAccuracy.high);
     
     _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
       Future.microtask(() => onNewLocationPoint(locationData));
     });
-
-    //dev.log('subscribed to location Updates', name: 'RunTracker');
     isReady = true;
   }
 
   void onNewLocationPoint(LocationData locationData){
-    //dev.log("$locationData", name: 'RunTracker');
     saveNewLocation(locationData);
     if (runIsActive.value) {
       addNewPoint();
@@ -84,20 +98,16 @@ class RunTracker {
         }
 
         _currentLocation = _currentLocation.update(loc);
+        currentRawLocation.value = loc;
         if (_lastLocation.value != null && _currentLocation.value != null) {
           updateSpeed();
         }
-
-        //dev.log("Current Location updated ${loc.latitude}, ${loc.longitude}", name: 'RunTracker');
-        //dev.log("Current Location Snapshot ${_currentLocation.timestamp}, ${_currentLocation.value.toString()}", name: 'RunTracker');
-        //dev.log("Last Location Snapshot ${_lastLocation.timestamp}, ${_lastLocation.value.toString()}", name: 'RunTracker');
         return true;
       }
       return false;
   }
 
   void addNewPoint(){
-    //dev.log('trying to add new point ${_currentLocation.value}, ${_currentLocation.timestamp}', name: 'RunTracker');
     final now = DateTime.now();
     final threshold = Duration(milliseconds: 1000);
 
@@ -106,12 +116,8 @@ class RunTracker {
         timestamp: now,
         location: _currentLocation.value!,
         vibrationSpec: _vibration.value!, 
-        rotationSpec: _rotation.value!,
-        compassSpec: _compass.value!,
         speed: _speed.value!,
       );
-
-      //dev.log('added $point', name: 'RunTracker');
 
       activeRun?.addPoint(point);
       lastPoint.value = point;
@@ -122,8 +128,6 @@ class RunTracker {
   bool hasAllMeasurementsNeeded(now, threshold){
     if (_currentLocation.value!=null 
         && _vibration.isFresh(threshold, now)
-        && _rotation.isFresh(threshold, now)
-        && _compass.isFresh(threshold, now)
         && _speed.isFresh(threshold, now)) 
     {
       return true;
@@ -142,53 +146,22 @@ class RunTracker {
       yCoordinate: worldAccel.y,
       zCoordinate: worldAccel.z,
     ));
-
-    // dev.log("Got vibration event: x=${event.x}, y=${event.y}, z=${event.z} \n" +
-    // "Latest quanternion = $quaternion \n" +
-    // "Rotationmatrix $_rotationMatrix \n +"
-    // "Raw and world accel length: ${rawAccel.length}, ${worldAccel.length}", name: 'RunTracker');
-    // dev.log('normalised vibration: ${_vibration.timestamp}, ${_vibration.value}', name: 'RunTracker');
-  }
-
-  void onRotationEvent(event){
-    //dev.log("Got Rotation event: x=${event.x}", name: 'RunTracker');
-    _rotation = _rotation.update(DimensionalSpec(
-      type: 'Rotation',
-      xCoordinate: event.x,
-      yCoordinate: event.y,
-      zCoordinate: event.z,
-    ));
-    //dev.log('new Rotation: ${_rotation.timestamp}, ${_rotation.value}', name: 'RunTracker');
   }
 
   void onQuanternionEvent(List<double> event) {
     vm.Quaternion q = vm.Quaternion(event[0], event[1], event[2], event[3]);
     vm.Matrix3 rotationMatrix = q.asRotationMatrix();
-    quaternion = event;
-    _rotationMatrix = rotationMatrix.clone()..invert(); // store inverted matrix
-  }
-
-  void onCompassEvent(event){
-    //dev.log("Got Compass event: x=${event.x}", name: 'RunTracker');
-    _compass = _compass.update(DimensionalSpec(
-      type: 'Compass',
-      xCoordinate: event.x,
-      yCoordinate: event.y,
-      zCoordinate: event.z,
-    ));
-    //dev.log('new Compass: ${_compass.timestamp}, ${_compass.value}', name: 'RunTracker');
+    _rotationQuaternion = event;
+    _rotationMatrix = rotationMatrix.clone()..invert();
   }
 
   void clearSensorSnapshots(){
     _vibration = _vibration.clear();
-    _rotation = _rotation.clear();
-    _compass = _compass.clear();
     _speed = _speed.clear();
   }
 
   void startRun() async {
     Future.microtask(() => {
-      //dev.log("starting run!", name: 'RunTracker'),
       activeRun = Run.create(DateTime.now()),
       runIsActive.value = true,
       addNewPoint(),
@@ -201,12 +174,13 @@ class RunTracker {
     lastPoint.value = null;
     clearSensorSnapshots();
     return activeRun;
-}
+  }
 
   void dispose() {
     _locationSubscription?.cancel();
+    _accelerometerSubscription.cancel();
+    _rotationSub?.cancel();
   }
-
 
   void updateSpeed() {
     final lastLoc = _lastLocation.value!;
@@ -232,11 +206,8 @@ class RunTracker {
     }
 
     _speed = _speed.update(speedMetersPerSecond);
-
-    //dev.log('Calculated speed: ${speedMetersPerSecond.toStringAsFixed(2)} m/s', name: 'RunTracker');
   }
 
-  // Helper function for Haversine distance in meters
   double haversineDistance(double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371000; // meters
 

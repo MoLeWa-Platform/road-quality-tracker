@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:provider/provider.dart';
 import '../models/dimension_spec.dart';
+import '../models/location_spec.dart';
 import '../models/run_point.dart';
 import '../models/run.dart';
 import '../services/run_tracker.dart';
 import '../services/run_history_provider.dart';
-import '../services/rotation_vector_stream.dart';
 
 class TrackingPage extends StatefulWidget {
   const TrackingPage({super.key});
@@ -19,65 +19,10 @@ class TrackingPage extends StatefulWidget {
 
 class _TrackingPageState extends State<TrackingPage> {
   RunTracker runTracker = RunTracker.create();
-
-  List<AccelerometerEvent> _accelerometerValue = [];
-  List<GyroscopeEvent> _rotationValue = [];
-  List<MagnetometerEvent> _compassValue = [];
-  List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
-
-  late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
-  late StreamSubscription<GyroscopeEvent> _gyroscopeSubscription;
-  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
-  late StreamSubscription<List<double>>? _rotationSub;
-
-  void subscribeToSensors(){
-    dev.log('Subcribing to sensors', name: 'TrackingPage');
-    _accelerometerSubscription = accelerometerEvents.listen((event) {
-      setState(() {
-        _accelerometerValue = [event];
-        runTracker.onVibrationEvent(event);
-      });
-    });
-    _gyroscopeSubscription = gyroscopeEvents.listen((event) {
-      setState(() {
-        _rotationValue = [event];
-        runTracker.onRotationEvent(event);
-      });
-    });
-    _rotationSub = RotationVectorStream.stream.listen((values) {
-      setState(() {
-        if (values.length >= 4) {
-          //dev.log('Rotation vector: $values', name: 'Sensor');
-          _rotationQuaternion = values;
-          runTracker.onQuanternionEvent(values);
-        }
-      });
-    });
-    _magnetometerSubscription = magnetometerEvents.listen((event) {
-      setState(() {
-        _compassValue = [event];
-        runTracker.onCompassEvent(event);
-      });
-    });
-  }
-
-  void disposeSensors(){
-    _accelerometerSubscription.cancel();
-    _gyroscopeSubscription.cancel();
-    _magnetometerSubscription.cancel();
-    _rotationSub?.cancel();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    subscribeToSensors();
-  }
   
   @override
   void dispose() {
     runTracker.dispose(); // Cancel the location stream
-    disposeSensors();
     super.dispose();
   }
 
@@ -125,9 +70,18 @@ class _TrackingPageState extends State<TrackingPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  PlainSensorOutput(type: 'Accelerometer / Vibration', valueList: _accelerometerValue, runIsActive: runIsActive,),
-                  PlainSensorOutput(type: 'Gyroscope / Rotation', valueList: _rotationValue, runIsActive: runIsActive,),
-                  PlainSensorOutput(type: 'Magnetometer / Compass', valueList: _compassValue, runIsActive: runIsActive,)
+                  ValueListenableBuilder<LocationSpec?>(
+                    valueListenable: runTracker.currentRawLocation,
+                    builder: (context, loc, _) {
+                      return PlainCoordinateOutput(location: loc);
+                    },
+                  ),
+                  ValueListenableBuilder<List<AccelerometerEvent>>(
+                    valueListenable: runTracker.currentRawVibration,
+                    builder: (context, vib, _) {
+                      return PlainSensorOutput(type: 'Accelerometer / Vibration', valueList: vib, runIsActive: runIsActive,);
+                    },
+                  ),
                   ]
               )
             )
@@ -173,6 +127,32 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 }
 
+class PlainCoordinateOutput extends StatelessWidget {
+  final LocationSpec? location;
+
+  const PlainCoordinateOutput({super.key, this.location});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(height: 10),
+        Text('Current Location', style: TextStyle(fontSize: 20)),
+        SizedBox(height: 10),
+        if (location != null)
+          Text(
+            'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          )
+        else
+          Text('No location yet', style: TextStyle(fontSize: 16)),
+        SizedBox(height: 10),
+      ],
+    );
+  }
+}
+
 class PlainSensorOutput extends StatelessWidget {
     const PlainSensorOutput({
       super.key,
@@ -211,6 +191,7 @@ class PlainSensorOutput extends StatelessWidget {
             );
       }
   }
+
 Widget buildLiveSensorCard(BuildContext context, RunPoint? point) {
   final labelStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600);
   final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87);
@@ -294,8 +275,6 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point) {
           ),
           SizedBox(height: 12),
           buildVectorRow("Vibration", point?.vibrationSpec),
-          buildVectorRow("Compass", point?.compassSpec),
-          buildVectorRow("Rotation", point?.rotationSpec),
         ],
       ),
     ),

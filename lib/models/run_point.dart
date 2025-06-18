@@ -17,22 +17,12 @@ class RunPoint extends HiveObject {
   final DimensionalSpec vibrationSpec;
   
   @HiveField(3)
-  final DimensionalSpec rotationSpec;
-  
-  @HiveField(4)
-  final DimensionalSpec compassSpec;
-  //final double orientation;
-  
-  @HiveField(5)
   final double speed;
 
   RunPoint({
     required this.timestamp,
     required this.location,
     required this.vibrationSpec,
-    required this.rotationSpec,
-    required this.compassSpec,
-    //required this.orientation,
     required this.speed
   });
 
@@ -42,9 +32,6 @@ class RunPoint extends HiveObject {
       "\nTime: ${timestamp.toString().split('.').first}" 
       "\nLocation: ${location.toString()}"
       "\nVibration specs: ${vibrationSpec.toString()}"
-      "\nRotation specs: ${rotationSpec.toString()}"
-      "\nCompass specs: ${compassSpec.toString()}"
-      //"\nOrientation: $orientation°"
       "\nSpeed: $speed");
   }
 
@@ -53,8 +40,6 @@ class RunPoint extends HiveObject {
     'speed': speed,
     'location' : location.toJson(),
     'vibration': vibrationSpec.toJson(), 
-    'rotation': rotationSpec.toJson(),
-    'compass': compassSpec.toJson(), 
   };
 }
 
