@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
+import 'package:vector_math/vector_math_64.dart' as vm;
 import 'dart:async';
 import 'dart:developer' as dev;
 import '../models/run.dart';
@@ -22,6 +23,9 @@ class RunTracker {
   SensorSnapshot<DimensionalSpec> _rotation = SensorSnapshot();
   SensorSnapshot<DimensionalSpec> _compass = SensorSnapshot();
   SensorSnapshot<double> _speed = SensorSnapshot();
+
+  List<double>? quaternion;
+  vm.Matrix3 _rotationMatrix = vm.Matrix3.identity();
   
   final Location _locationService = Location();
   late StreamSubscription<LocationData>? _locationSubscription;
@@ -130,14 +134,20 @@ class RunTracker {
   }
 
   void onVibrationEvent(event){
-    //dev.log("Got vibration event: x=${event.x}", name: 'RunTracker');
+    final rawAccel = vm.Vector3(event.x, event.y, event.z);
+    final worldAccel = _rotationMatrix.transformed(rawAccel);
     _vibration = _vibration.update(DimensionalSpec(
       type: 'Vibration',
-      xCoordinate: event.x,
-      yCoordinate: event.y,
-      zCoordinate: event.z,
+      xCoordinate: worldAccel.x,
+      yCoordinate: worldAccel.y,
+      zCoordinate: worldAccel.z,
     ));
-    //dev.log('new vibration: ${_vibration.timestamp}, ${_vibration.value}', name: 'RunTracker');
+
+    // dev.log("Got vibration event: x=${event.x}, y=${event.y}, z=${event.z} \n" +
+    // "Latest quanternion = $quaternion \n" +
+    // "Rotationmatrix $_rotationMatrix \n +"
+    // "Raw and world accel length: ${rawAccel.length}, ${worldAccel.length}", name: 'RunTracker');
+    // dev.log('normalised vibration: ${_vibration.timestamp}, ${_vibration.value}', name: 'RunTracker');
   }
 
   void onRotationEvent(event){
@@ -149,6 +159,13 @@ class RunTracker {
       zCoordinate: event.z,
     ));
     //dev.log('new Rotation: ${_rotation.timestamp}, ${_rotation.value}', name: 'RunTracker');
+  }
+
+  void onQuanternionEvent(List<double> event) {
+    vm.Quaternion q = vm.Quaternion(event[0], event[1], event[2], event[3]);
+    vm.Matrix3 rotationMatrix = q.asRotationMatrix();
+    quaternion = event;
+    _rotationMatrix = rotationMatrix.clone()..invert(); // store inverted matrix
   }
 
   void onCompassEvent(event){

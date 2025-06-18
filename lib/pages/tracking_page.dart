@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
-import 'package:road_quality_tracker/models/dimension_spec.dart';
-import 'package:road_quality_tracker/models/run_point.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:provider/provider.dart';
+import '../models/dimension_spec.dart';
+import '../models/run_point.dart';
+import '../models/run.dart';
 import '../services/run_tracker.dart';
 import '../services/run_history_provider.dart';
-import 'package:sensors_plus/sensors_plus.dart';
-import '../models/run.dart';
-import 'package:provider/provider.dart';
-
+import '../services/rotation_vector_stream.dart';
 
 class TrackingPage extends StatefulWidget {
   const TrackingPage({super.key});
@@ -23,10 +23,12 @@ class _TrackingPageState extends State<TrackingPage> {
   List<AccelerometerEvent> _accelerometerValue = [];
   List<GyroscopeEvent> _rotationValue = [];
   List<MagnetometerEvent> _compassValue = [];
+  List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
 
   late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
   late StreamSubscription<GyroscopeEvent> _gyroscopeSubscription;
   late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  late StreamSubscription<List<double>>? _rotationSub;
 
   void subscribeToSensors(){
     dev.log('Subcribing to sensors', name: 'TrackingPage');
@@ -42,7 +44,15 @@ class _TrackingPageState extends State<TrackingPage> {
         runTracker.onRotationEvent(event);
       });
     });
-
+    _rotationSub = RotationVectorStream.stream.listen((values) {
+      setState(() {
+        if (values.length >= 4) {
+          //dev.log('Rotation vector: $values', name: 'Sensor');
+          _rotationQuaternion = values;
+          runTracker.onQuanternionEvent(values);
+        }
+      });
+    });
     _magnetometerSubscription = magnetometerEvents.listen((event) {
       setState(() {
         _compassValue = [event];
@@ -55,6 +65,7 @@ class _TrackingPageState extends State<TrackingPage> {
     _accelerometerSubscription.cancel();
     _gyroscopeSubscription.cancel();
     _magnetometerSubscription.cancel();
+    _rotationSub?.cancel();
   }
 
   @override
