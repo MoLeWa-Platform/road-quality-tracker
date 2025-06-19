@@ -243,66 +243,66 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
           ),
           SizedBox(height: 15),
-          Positioned(
-          bottom: 20,
-          left: 20,
-          right: 20,
-          child: selectionType == SelectionType.none
-          ? Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: completedRuns!.isNotEmpty ? _downloadRuns : null,
-                  icon: Icon(Icons.download),
-                  label: Text("Download Runs"),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    elevation: 3,
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+            child: selectionType == SelectionType.none
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: completedRuns!.isNotEmpty ? _downloadRuns : null,
+                        icon: Icon(Icons.download),
+                        label: Text("Download Runs"),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          elevation: 3,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: completedRuns!.isNotEmpty ? _uploadRuns : null, //hasUnsyncedRuns! ? _uploadRuns: null,
+                        icon: Icon(Icons.upload),
+                        label: Text("Upload Unsynced"),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          elevation: 3,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            selectionType = SelectionType.none;
+                            selectedRunIds.clear();
+                          });
+                        },
+                        icon: Icon(Icons.close),
+                        label: Text("Cancel"),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          if (selectionType == SelectionType.upload) {
+                            context.read<RunHistoryProvider>().uploadSelectedRuns(context, selectedRunIds);
+                          } else if (selectionType == SelectionType.download) {
+                            context.read<RunHistoryProvider>().downloadSelectedRuns(context, selectedRunIds);
+                          }
+                          setState(() {
+                            selectionType = SelectionType.none;
+                            selectedRunIds.clear();
+                          });
+                        },
+                        icon: Icon(selectionType == SelectionType.upload ? Icons.upload : Icons.download),
+                        label: Text(selectionType == SelectionType.upload ? "Submit Upload" : "Download Runs"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: completedRuns!.isNotEmpty ? _uploadRuns: null, //hasUnsyncedRuns! ? _uploadRuns: null,
-                  icon: Icon(Icons.upload),
-                  label: Text("Upload Unsynced"),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    elevation: 3,
-                  ),
-                ),
-              ],
-            )
-            : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      selectionType = SelectionType.none;
-                      selectedRunIds.clear();
-                    });
-                  },
-                  icon: Icon(Icons.close),
-                  label: Text("Cancel"),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (selectionType == SelectionType.upload) {
-                      context.read<RunHistoryProvider>().uploadSelectedRuns(context, selectedRunIds);
-                    } else if (selectionType == SelectionType.download) {
-                      context.read<RunHistoryProvider>().downloadSelectedRuns(context, selectedRunIds);
-                    }
-                    setState(() {
-                      selectionType = SelectionType.none;
-                      selectedRunIds.clear();
-                    });
-                  },
-                  icon: Icon(selectionType == SelectionType.upload ? Icons.upload : Icons.download),
-                  label: Text(selectionType == SelectionType.upload ? "Submit Upload" : "Download Runs"),
-                  style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Theme.of(context).colorScheme.onSecondary),
-                ),
-              ]),
           ),
         SizedBox(height: 20),
       ])
