@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:provider/provider.dart';
@@ -11,24 +9,30 @@ import '../services/run_tracker.dart';
 import '../services/run_history_provider.dart';
 
 class TrackingPage extends StatefulWidget {
-  const TrackingPage({super.key});
+  final RunTracker runTracker;
+  const TrackingPage({super.key, required this.runTracker});
 
   @override
   State<TrackingPage> createState() => _TrackingPageState();
 }
 
 class _TrackingPageState extends State<TrackingPage> {
-  RunTracker runTracker = RunTracker.create();
-  
+  late final RunTracker runTracker;
+
+  @override
+  void initState() {
+    super.initState();
+    runTracker = widget.runTracker;
+  }
+
   @override
   void dispose() {
-    runTracker.dispose(); // Cancel the location stream
     super.dispose();
   }
 
   void toggleRun(){
     if (runTracker.isReady) {
-        if (runTracker.runIsActive.value) {
+        if (RunTracker.runIsActive.value) {
         Run? completedRun = runTracker.endRun();
         
         if (completedRun != null) {
@@ -53,7 +57,7 @@ class _TrackingPageState extends State<TrackingPage> {
   Widget build(BuildContext context) {
     ColorScheme appColorScheme = Theme.of(context).colorScheme;
     return ValueListenableBuilder<bool>(
-      valueListenable: runTracker.runIsActive,
+      valueListenable: RunTracker.runIsActive,
       builder: (context, runIsActive, _) {
         String buttonText = runIsActive ? 'END RUN' : 'START RUN';
         Color buttonColor = runIsActive ? appColorScheme.secondary : appColorScheme.primary;

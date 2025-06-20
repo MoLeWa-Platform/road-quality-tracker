@@ -15,7 +15,7 @@ import '../services/rotation_vector_stream.dart';
 class RunTracker {
   Run? activeRun;
   bool isReady = false;
-  final ValueNotifier<bool> runIsActive = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> runIsActive = ValueNotifier<bool>(false);
   final ValueNotifier<RunPoint?> lastPoint = ValueNotifier(null);
   final ValueNotifier<LocationSpec?> currentRawLocation = ValueNotifier(null);
   final ValueNotifier<List<AccelerometerEvent>> currentRawVibration = ValueNotifier([]);
