@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:road_quality_tracker/main.dart';
-import 'package:road_quality_tracker/services/background_service.dart';
 
 void main() {
   testWidgets('App renders smoke test', (WidgetTester tester) async {

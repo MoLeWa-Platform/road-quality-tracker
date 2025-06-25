@@ -67,20 +67,18 @@ class RunTracker {
         throw ('Locationservice couldnt be enabled!');
       }
     }
-
-    PermissionStatus permissionGranted = await _locationService.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await _locationService.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) {
+    PermissionStatus permissionGranted = await _locationService.hasPermission(); //should be enabled through permission gate
+    if (permissionGranted != PermissionStatus.granted) {
         throw ('Access rights are missing for the phones location data!');
-      }
     }
-    _locationService.changeSettings(interval: 2000, accuracy: LocationAccuracy.high);
-    
-    _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
-      Future.microtask(() => onNewLocationPoint(locationData));
-    });
-    isReady = true;
+    if (serviceEnabled && (permissionGranted == PermissionStatus.granted)){
+      _locationService.changeSettings(interval: 2000, accuracy: LocationAccuracy.high);
+      
+      _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
+        Future.microtask(() => onNewLocationPoint(locationData));
+      });
+      isReady = true;
+    }
   }
 
   void onNewLocationPoint(LocationData locationData){
