@@ -95,9 +95,9 @@ class RunHistoryProvider with ChangeNotifier {
       );
 
       if (fileName == null || fileName.isEmpty || !context.mounted) return;
-
       final file = File('${dir!.path}/$fileName');
       await file.writeAsString(jsonString);
+      if (!context.mounted) return;
 
       showDialog(
         context: context,

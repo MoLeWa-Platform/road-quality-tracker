@@ -26,7 +26,7 @@ class RunTracker {
   SensorSnapshot<DimensionalSpec> _vibration = SensorSnapshot();
   SensorSnapshot<double> _speed = SensorSnapshot();
 
-  List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
+  //List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
   vm.Matrix3 _rotationMatrix = vm.Matrix3.identity();
   
   final Location _locationService = Location();
@@ -47,13 +47,13 @@ class RunTracker {
 
   void subscribeToSensors(){
     dev.log('Subcribing to sensors', name: 'RunTracker');
-    _accelerometerSubscription = accelerometerEvents.listen((event) {
+    _accelerometerSubscription = accelerometerEventStream().listen((event) {
       currentRawVibration.value = [event];
       onVibrationEvent(event);
     });
     _rotationSub = RotationVectorStream.stream.listen((values) {
       if (values.length >= 4) {
-        _rotationQuaternion = values;
+        //_rotationQuaternion = values;
         onQuanternionEvent(values);
       }
     });
@@ -149,7 +149,7 @@ class RunTracker {
   void onQuanternionEvent(List<double> event) {
     vm.Quaternion q = vm.Quaternion(event[0], event[1], event[2], event[3]);
     vm.Matrix3 rotationMatrix = q.asRotationMatrix();
-    _rotationQuaternion = event;
+    //_rotationQuaternion = event;
     _rotationMatrix = rotationMatrix.clone()..invert();
   }
 

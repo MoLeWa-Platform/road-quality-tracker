@@ -9,7 +9,7 @@ class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
   @override
-  _HistoryPageState createState() => _HistoryPageState();
+  State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
@@ -145,8 +145,8 @@ class _HistoryPageState extends State<HistoryPage> {
                               ),
                               tooltip: "Sync status",
                               padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tightFor(width: 32, height: 32), // 🔧 uniform sizing
-                              onPressed: null, // or show info if you want
+                              constraints: BoxConstraints.tightFor(width: 32, height: 32), 
+                              onPressed: null, // or show info 
                             ),
                           Checkbox(
                               value: selectedRunIds.contains(run.id),
@@ -174,8 +174,8 @@ class _HistoryPageState extends State<HistoryPage> {
                               ),
                               tooltip: "Sync status",
                               padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tightFor(width: 32, height: 32), // 🔧 uniform sizing
-                              onPressed: null, // or show info if you want
+                              constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                              onPressed: null, // or show info 
                             ),
                             IconButton(
                               icon: Icon(Icons.delete, size: 20),
@@ -210,28 +210,6 @@ class _HistoryPageState extends State<HistoryPage> {
                             children: [
                               Text("Duration: ${run.endTime?.difference(run.startTime) ?? Duration.zero}"),
                               Text("Points: ${run.runPoints.length}"),
-                              // FlutterMap(
-                              //   options: MapOptions(
-                              //     initialCenter: LatLng(51.509364, -0.128928), // Center the map over London
-                              //     initialZoom: 9.2,
-                              //   ),
-                              //   children: [
-                              //     TileLayer( // Bring your own tiles
-                              //       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // For demonstration only
-                              //       userAgentPackageName: 'com.example.road_quality_tracker', // Add your app identifier
-                              //       // And many more recommended properties!
-                              //     ),
-                              //     RichAttributionWidget( // Include a stylish prebuilt attribution widget that meets all requirments
-                              //       attributions: [
-                              //         TextSourceAttribution(
-                              //           'OpenStreetMap contributors',
-                              //           //onTap: () => launchUrl(Uri.parse('https://openstreetmap.org/copyright')), // (external)
-                              //         ),
-                              //         // Also add images...
-                              //       ],
-                              //     ),
-                              //   ],
-                              // ),
                             ],
                           ),
                         ),
@@ -326,9 +304,9 @@ void _renameRun(BuildContext context, Run run) {
           ElevatedButton(
             onPressed: () {
               run.name = controller.text;
-              run.save(); // ✅ persists change if Run extends HiveObject
+              run.save(); 
               Navigator.pop(context);
-              setState(() {}); // Refresh the UI
+              setState(() {}); 
             },
             child: Text("Save"),
           )
@@ -356,9 +334,10 @@ void _deleteRun(BuildContext context, Run run) {
                   foregroundColor: appColorScheme.onSecondary),
           child: Text("Delete"),
           onPressed: () async {
-            await run.delete(); // 🧨 from Hive
+            await run.delete(); 
+            if (!context.mounted) return;
             Navigator.pop(context);
-            setState(() {}); // 🔁 refresh list
+            setState(() {}); 
           },
         ),
       ],
