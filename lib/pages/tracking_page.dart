@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:provider/provider.dart';
 import '../models/dimension_spec.dart';
@@ -10,7 +11,8 @@ import '../services/run_history_provider.dart';
 
 class TrackingPage extends StatefulWidget {
   final RunTracker runTracker;
-  const TrackingPage({super.key, required this.runTracker});
+  final FlutterBackgroundService backgroundService; 
+  const TrackingPage({super.key, required this.runTracker, required this.backgroundService});
 
   @override
   State<TrackingPage> createState() => _TrackingPageState();
@@ -18,11 +20,13 @@ class TrackingPage extends StatefulWidget {
 
 class _TrackingPageState extends State<TrackingPage> {
   late final RunTracker runTracker;
+  late final FlutterBackgroundService backgroundService; 
 
   @override
   void initState() {
     super.initState();
     runTracker = widget.runTracker;
+    backgroundService = widget.backgroundService;
   }
 
   @override
@@ -30,16 +34,16 @@ class _TrackingPageState extends State<TrackingPage> {
     super.dispose();
   }
 
-  void toggleRun(){
+  void toggleRun() {
     if (runTracker.isReady) {
-        if (RunTracker.runIsActive.value) {
+      if (RunTracker.runIsActive.value) { // stop run
         Run? completedRun = runTracker.endRun();
-        
+        backgroundService.invoke('stopForeground');
         if (completedRun != null) {
-          // Save completed run
           context.read<RunHistoryProvider>().addRun(completedRun);
         }
-      } else {
+      } else { // start run
+        backgroundService.invoke('startAsForeground');
         runTracker.startRun();
       }
     } else {
