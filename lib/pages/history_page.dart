@@ -61,229 +61,253 @@ class _HistoryPageState extends State<HistoryPage> {
     completedRuns = runHistoryProvider!.completedRuns.reversed.toList();
     hasUnsyncedRuns = completedRuns!.any((run) => !run.isSynced);
 
-    return Scaffold(
-      appBar: AppBar(title: selectionType == SelectionType.none 
-      ? Text("Run History") 
-      : selectionType == SelectionType.upload ? Text("Upload Runs") : Text("Download Runs")),
-      body: Column(
-        children: [
-          if (selectionType != SelectionType.none)
-              Material(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            selectionType == SelectionType.upload
-                                ? Icons.cloud_upload
-                                : Icons.download,
-                            color: Theme.of(context).colorScheme.onSecondaryContainer,
-                            size: 20,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            selectionType == SelectionType.upload
-                                ? "Select runs to upload."
-                                : "Select runs to download.",
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSecondaryContainer,
-                                ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            "Select all",
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
-                          ),
-                          Checkbox(
-                            value: _areAllSelected(),
-                            onChanged: (checked) {
-                              setState(() {
-                                if (checked == true) {
-                                  selectedRunIds = completedRuns!.map((r) => r.id).toSet();
-                                } else {
-                                  selectedRunIds.clear();
-                                }
-                              });
-                            },
-                          ),
-                          SizedBox(width: 8),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 25),
+              Text(
+                selectionType == SelectionType.none
+                    ? "Run History"
+                    : selectionType == SelectionType.upload
+                        ? "Upload Runs"
+                        : "Download Runs",
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: completedRuns!.length,
-              itemBuilder: (context, index) {
-                final run = completedRuns![index];
-                final isExpanded = expandedIndex == index;
-                return Column(
-                  children: [
-                    ListTile(
-                      title: Text(run.name),
-                      subtitle: Text("Run on ${run.startTime}"),
-                      trailing: selectionType != SelectionType.none
-                      ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                              icon: Icon(
-                                run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
-                                color: run.isSynced ? Colors.green : Colors.grey,
-                                size: 20,
-                              ),
-                              tooltip: "Sync status",
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tightFor(width: 32, height: 32), 
-                              onPressed: null, // or show info 
+              const SizedBox(height: 12),
+              Divider(
+                thickness: 1.3,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1,
+              ),
+            ],
+          ),
+          toolbarHeight: 70,
+        ),
+        body: Column(
+          children: [
+            const SizedBox(height: 15),
+            if (selectionType != SelectionType.none)
+                Material(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              selectionType == SelectionType.upload
+                                  ? Icons.cloud_upload
+                                  : Icons.download,
+                              color: Theme.of(context).colorScheme.onSecondaryContainer,
+                              size: 20,
                             ),
-                          Checkbox(
-                              value: selectedRunIds.contains(run.id),
+                            SizedBox(width: 10),
+                            Text(
+                              selectionType == SelectionType.upload
+                                  ? "Select runs to upload."
+                                  : "Select runs to download.",
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              "Select all",
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),
+                            ),
+                            Checkbox(
+                              value: _areAllSelected(),
                               onChanged: (checked) {
                                 setState(() {
                                   if (checked == true) {
-                                    selectedRunIds.add(run.id);
+                                    selectedRunIds = completedRuns!.map((r) => r.id).toSet();
                                   } else {
-                                    selectedRunIds.remove(run.id);
+                                    selectedRunIds.clear();
                                   }
                                 });
                               },
                             ),
-                        ],
-                      ) 
-                        : Row(
-                          // mainAxisAlignment: MainAxisAlignment.end,
+                            SizedBox(width: 8),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: completedRuns!.length,
+                itemBuilder: (context, index) {
+                  final run = completedRuns![index];
+                  final isExpanded = expandedIndex == index;
+                  return Column(
+                    children: [
+                      ListTile(
+                        title: Text(run.name),
+                        subtitle: Text("Run on ${run.startTime}"),
+                        trailing: selectionType != SelectionType.none
+                        ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(
-                                run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
-                                color: run.isSynced ? Colors.green : Colors.grey,
-                                size: 20,
+                                icon: Icon(
+                                  run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+                                  color: run.isSynced ? Colors.green : Colors.grey,
+                                  size: 20,
+                                ),
+                                tooltip: "Sync status",
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints.tightFor(width: 32, height: 32), 
+                                onPressed: null, // or show info 
                               ),
-                              tooltip: "Sync status",
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tightFor(width: 32, height: 32),
-                              onPressed: null, // or show info 
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete, size: 20),
-                              tooltip: "Rename run",
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tightFor(width: 32, height: 32),
-                              onPressed: () => _deleteRun(context, run),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.edit, size: 20),
-                              tooltip: "Rename run",
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tightFor(width: 32, height: 32),
-                              onPressed: () => _renameRun(context, run),
-                            ),
-                            // Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
+                            Checkbox(
+                                value: selectedRunIds.contains(run.id),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      selectedRunIds.add(run.id);
+                                    } else {
+                                      selectedRunIds.remove(run.id);
+                                    }
+                                  });
+                                },
+                              ),
                           ],
-                        ),
-                      onTap: () {
-                        setState(() {
-                          expandedIndex = isExpanded ? null : index;
-                        });
-                      },
-                    ),
-                    if (isExpanded)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 40.0, top: 8.0, bottom: 8.0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        ) 
+                          : Row(
+                            // mainAxisAlignment: MainAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text("Duration: ${run.endTime?.difference(run.startTime) ?? Duration.zero}"),
-                              Text("Points: ${run.runPoints.length}"),
+                              IconButton(
+                                icon: Icon(
+                                  run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+                                  color: run.isSynced ? Colors.green : Colors.grey,
+                                  size: 20,
+                                ),
+                                tooltip: "Sync status",
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                                onPressed: null, // or show info 
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, size: 20),
+                                tooltip: "Rename run",
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                                onPressed: () => _deleteRun(context, run),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.edit, size: 20),
+                                tooltip: "Rename run",
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints.tightFor(width: 32, height: 32),
+                                onPressed: () => _renameRun(context, run),
+                              ),
+                              // Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
                             ],
                           ),
-                        ),
+                        onTap: () {
+                          setState(() {
+                            expandedIndex = isExpanded ? null : index;
+                          });
+                        },
                       ),
-                    Divider(),
-                  ],
-                );
-              },
+                      if (isExpanded)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 40.0, top: 8.0, bottom: 8.0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Duration: ${run.endTime?.difference(run.startTime) ?? Duration.zero}"),
+                                Text("Points: ${run.runPoints.length}"),
+                              ],
+                            ),
+                          ),
+                        ),
+                      Divider(),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-          SizedBox(height: 15),
-          Padding(
-            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-            child: selectionType == SelectionType.none
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: completedRuns!.isNotEmpty ? _downloadRuns : null,
-                        icon: Icon(Icons.download),
-                        label: Text("Download Runs"),
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          elevation: 3,
+            SizedBox(height: 15),
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              child: selectionType == SelectionType.none
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: completedRuns!.isNotEmpty ? _downloadRuns : null,
+                          icon: Icon(Icons.download),
+                          label: Text("Download Runs"),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            elevation: 3,
+                          ),
                         ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: completedRuns!.isNotEmpty ? _uploadRuns : null, //hasUnsyncedRuns! ? _uploadRuns: null,
-                        icon: Icon(Icons.upload),
-                        label: Text("Upload Unsynced"),
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          elevation: 3,
+                        ElevatedButton.icon(
+                          onPressed: completedRuns!.isNotEmpty ? _uploadRuns : null, //hasUnsyncedRuns! ? _uploadRuns: null,
+                          icon: Icon(Icons.upload),
+                          label: Text("Upload Unsynced"),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            elevation: 3,
+                          ),
                         ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            selectionType = SelectionType.none;
-                            selectedRunIds.clear();
-                          });
-                        },
-                        icon: Icon(Icons.close),
-                        label: Text("Cancel"),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          if (selectionType == SelectionType.upload) {
-                            context.read<RunHistoryProvider>().uploadSelectedRuns(context, selectedRunIds);
-                          } else if (selectionType == SelectionType.download) {
-                            context.read<RunHistoryProvider>().downloadSelectedRuns(context, selectedRunIds);
-                          }
-                          setState(() {
-                            selectionType = SelectionType.none;
-                            selectedRunIds.clear();
-                          });
-                        },
-                        icon: Icon(selectionType == SelectionType.upload ? Icons.upload : Icons.download),
-                        label: Text(selectionType == SelectionType.upload ? "Submit Upload" : "Download Runs"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.secondary,
-                          foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              selectionType = SelectionType.none;
+                              selectedRunIds.clear();
+                            });
+                          },
+                          icon: Icon(Icons.close),
+                          label: Text("Cancel"),
                         ),
-                      ),
-                    ],
-                  ),
-          ),
-        SizedBox(height: 20),
-      ])
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (selectionType == SelectionType.upload) {
+                              context.read<RunHistoryProvider>().uploadSelectedRuns(context, selectedRunIds);
+                            } else if (selectionType == SelectionType.download) {
+                              context.read<RunHistoryProvider>().downloadSelectedRuns(context, selectedRunIds);
+                            }
+                            setState(() {
+                              selectionType = SelectionType.none;
+                              selectedRunIds.clear();
+                            });
+                          },
+                          icon: Icon(selectionType == SelectionType.upload ? Icons.upload : Icons.download),
+                          label: Text(selectionType == SelectionType.upload ? "Submit Upload" : "Download Runs"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
+                            foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          SizedBox(height: 20),
+        ])
+      ),
     );
   }
 

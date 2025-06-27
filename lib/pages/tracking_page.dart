@@ -67,112 +67,115 @@ class _TrackingPageState extends State<TrackingPage> {
         Color buttonColor = runIsActive ? appColorScheme.secondary : appColorScheme.primary;
         Color buttonTextColor = runIsActive ? appColorScheme.onSecondary : appColorScheme.onPrimary;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 90.0, left: 16.0, right: 16.0, bottom: 16.0),
-                child: Column(
-                  children: [
-                    if (!runIsActive) ...[
-                      Text(
-                        'Start a Run to Begin Tracking!',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Currently showing connected sensors…',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 25),
-                    ],
-                    if (runIsActive) ...[
-                      Text(
-                        'Tracking in Progress',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Monitoring movement and location…',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 25),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            if (!runIsActive)
-              Expanded(
-                child: Center(
+        return Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+          body: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 90.0, left: 16.0, right: 16.0, bottom: 16.0),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(height: 50),
-                      ValueListenableBuilder<LocationSpec?>(
-                        valueListenable: runTracker.currentRawLocation,
-                        builder: (context, loc, _) {
-                          return PlainCoordinateOutput(location: loc);
-                        },
-                      ),
-                      ValueListenableBuilder<List<AccelerometerEvent>>(
-                        valueListenable: runTracker.currentRawVibration,
-                        builder: (context, vib, _) {
-                          return PlainSensorOutput(
-                            type: 'Accelerometer / Vibration',
-                            valueList: vib,
-                            runIsActive: runIsActive,
-                          );
-                        },
-                      ),
+                      if (!runIsActive) ...[
+                        Text(
+                          'Start a Run to Begin Tracking!',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Currently showing connected sensors…',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 25),
+                      ],
+                      if (runIsActive) ...[
+                        Text(
+                          'Tracking in Progress',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Monitoring movement and location…',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 25),
+                      ],
                     ],
                   ),
                 ),
               ),
-            if (runIsActive)
-              Expanded(
-                child: Center(
-                  child: ValueListenableBuilder<RunPoint?>(
-                    valueListenable: runTracker.lastPoint,
-                    builder: (context, point, _) => Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          SizedBox(height: 50),
-                          if (runIsActive) buildLiveSensorCard(context, point),
-                        ],
+              if (!runIsActive)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(height: 50),
+                        ValueListenableBuilder<LocationSpec?>(
+                          valueListenable: runTracker.currentRawLocation,
+                          builder: (context, loc, _) {
+                            return PlainCoordinateOutput(location: loc);
+                          },
+                        ),
+                        ValueListenableBuilder<List<AccelerometerEvent>>(
+                          valueListenable: runTracker.currentRawVibration,
+                          builder: (context, vib, _) {
+                            return PlainSensorOutput(
+                              type: 'Accelerometer / Vibration',
+                              valueList: vib,
+                              runIsActive: runIsActive,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (runIsActive)
+                Expanded(
+                  child: Center(
+                    child: ValueListenableBuilder<RunPoint?>(
+                      valueListenable: runTracker.lastPoint,
+                      builder: (context, point, _) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 50),
+                            if (runIsActive) buildLiveSensorCard(context, point),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    toggleRun();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    foregroundColor: buttonTextColor,
-                    textStyle: Theme.of(context).textTheme.titleMedium,
-                    elevation: 7,
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                    shape: const StadiumBorder(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      toggleRun();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: buttonColor,
+                      foregroundColor: buttonTextColor,
+                      textStyle: Theme.of(context).textTheme.titleMedium,
+                      elevation: 7,
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: Text(buttonText),
                   ),
-                  child: Text(buttonText),
-                ),
-              ],
-            ),
-            SizedBox(height: 50),
-          ],
+                ],
+              ),
+              SizedBox(height: 50),
+            ],
+          ),
         );
       },
     );
