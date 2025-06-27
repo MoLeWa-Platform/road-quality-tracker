@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import '../models/run.dart';
 import 'dart:developer' as dev;
@@ -8,7 +9,8 @@ import 'package:path_provider/path_provider.dart';
 
 class RunHistoryProvider with ChangeNotifier {
   final Box<Run> _runBox = Hive.box<Run>('runs');
-
+  final storage = FlutterSecureStorage();
+  
   List<Run> get completedRuns => _runBox.values.toList();
 
   void addRun(Run run) {
@@ -33,36 +35,82 @@ class RunHistoryProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void uploadSelectedRuns(context, Set<String> selectedRunIds) {
-    bool gotError = false;
-    for (var run in completedRuns) {
-          if (selectedRunIds.contains(run.id)) {
-            // make api call here
-            bool returnVal = true;
-            if (returnVal) {
-              run.isSynced = true;
-              run.save();
-            } else {
-              run.isSynced = false; 
-              run.save();
-              gotError = true;
-            }
-          }
-        }
-      if (gotError){
-        dev.log('ERROR occured when uploading Runs!', name: 'RunHistoryProvider');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Upload failed!"),
-            duration: Duration(seconds: 2),
-            behavior: SnackBarBehavior.fixed,
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      } else {
-        dev.log('Uploaded ${selectedRunIds.length} Runs.', name: 'RunHistoryProvider');
-      }
+  void uploadSelectedRuns(context, Set<String> selectedRunIds) async {
+    final runsToUpload = completedRuns.where((r) => selectedRunIds.contains(r.id)).toList();
+    final jsonString = buildJsonDownload(runsToUpload);
+    final resultCode = await makeUploadApiCall(jsonString);
+
+    if (resultCode < 1){
+      dev.log('ERROR occured when uploading Runs!', name: 'RunHistoryProvider');
+      updateSyncStatus(false, runsToUpload);
+      final text = resultCode == -1 
+        ? 'Please provide your credentials in the settings!' 
+        : 'Upload failed! Have you checked your connection in the Settings?';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(text, textAlign: TextAlign.center,),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.fixed,
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } else {
+      dev.log('Uploaded ${runsToUpload.length} Runs.' , name: 'RunHistoryProvider');
+      updateSyncStatus(true, runsToUpload);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Upload successful!'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.fixed,
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
     notifyListeners();
+  }
+
+  void updateSyncStatus (bool uploaded, List<Run> runs) {
+    for (var run in runs) {
+        if (uploaded) {
+          run.isSynced = true;
+          run.save();
+        }
+    }
+    notifyListeners();
+  }
+
+  Future<int> makeUploadApiCall (String runsJson) async {
+    final urlString = await storage.read(key: 'serverUrl');
+    final username = await storage.read(key: 'username');
+    final password = await storage.read(key: 'password');
+
+    if (urlString == null || username == null || password == null ||
+        urlString == '' || username == '' || password == '') {
+      dev.log('Missing credentials or server URL', name: 'RunHistoryProvider');
+      return -1; // Treat as error
+    }
+
+    try {
+      final url = Uri.parse(urlString);
+      final request = await HttpClient().postUrl(url);
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'application/json',
+      );
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Basic ${base64Encode(utf8.encode('$username:$password'))}',
+      );
+      request.add(utf8.encode(runsJson));
+
+      final response = await request.close();
+      dev.log('Upload status: ${response.statusCode}', name: 'RunHistoryProvider');
+
+      return response.statusCode >= 200 && response.statusCode < 300 ? 1 : 0;
+    } catch (e) {
+      dev.log('Upload error: $e', name: 'RunHistoryProvider');
+      return 0;
+    }
   }
   
   void downloadSelectedRuns(BuildContext context, Set<String> selectedRunIds) async {
