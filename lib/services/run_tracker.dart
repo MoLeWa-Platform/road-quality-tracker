@@ -91,7 +91,7 @@ class RunTracker {
   bool saveNewLocation(LocationData locationData){
       if (locationData.latitude != null && locationData.longitude != null) {
         final loc = LocationSpec(latitude: locationData.latitude!, longitude: locationData.longitude!);
-        if (_currentLocation.value != null) { 
+                if (_currentLocation.value != null) { 
           _lastLocation = _currentLocation;
         }
 
@@ -198,12 +198,13 @@ class RunTracker {
     );
 
     final speedMetersPerSecond = distance / timeDelta;
+    final speedKmh = speedMetersPerSecond * 3.6;
 
     if (speedMetersPerSecond > 30){
       dev.log('ABNORMAL HIGH SPEED DETECTED - ${speedMetersPerSecond.toStringAsFixed(2)} m/s - GPS GLITCH?', name: 'RunTracker');
     }
 
-    _speed = _speed.update(speedMetersPerSecond);
+    _speed = _speed.update(speedKmh);
   }
 
   double haversineDistance(double lat1, double lon1, double lat2, double lon2) {

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -107,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
             SnackBar(
               content: code==null? Text('Connection could not be established.'): Text('Connection could not be established. (Code: $code)'),
               duration: const Duration(milliseconds: 1300),
-              backgroundColor: Colors.red[400],
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
 
@@ -264,7 +263,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             color: _connectionSuccess
                                 ? Colors.green
                                 : _showErrorColor
-                                    ? Colors.red[400]
+                                    ? Theme.of(context).colorScheme.error
                                     : null,
                           ),
                       label: const Text('Check Connection'),
