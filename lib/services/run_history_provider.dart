@@ -5,7 +5,8 @@ import '../models/run.dart';
 import 'dart:developer' as dev;
 import 'dart:convert'; 
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class RunHistoryProvider with ChangeNotifier {
   final Box<Run> _runBox = Hive.box<Run>('runs');
@@ -115,11 +116,47 @@ class RunHistoryProvider with ChangeNotifier {
   
   void downloadSelectedRuns(BuildContext context, Set<String> selectedRunIds) async {
     final downloadRuns = completedRuns.where((r) => selectedRunIds.contains(r.id)).toList();
-    final jsonString = buildJsonDownload(downloadRuns);
+    final permissionStatus = await Permission.manageExternalStorage.status;
+    if (!permissionStatus.isGranted) {
+      if (!context.mounted) return;
 
-    final dir = await getExternalStorageDirectory();
-    
-    if (context.mounted) {
+      final retry = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text("Storage Permission Required"),
+          content: Text("To save your runs, we need access to your storage."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text("Retry Permission"),
+            ),
+          ],
+        ),
+      );
+
+      if (retry == true) {
+        final result = await Permission.manageExternalStorage.request();
+        if (!result.isGranted) {
+          final fallback = await Permission.storage.request();
+          if (!fallback.isGranted) {
+            dev.log("User denied storage permission", name: "RunHistoryProvider");
+            return;
+          }
+        }
+      } else {
+        return;
+      }
+    }
+
+    try {
+      final jsonString = buildJsonDownload(downloadRuns);
+
+      if (!context.mounted) return;
+
       final fileNameController = TextEditingController(text: 'runs_export.json');
       final fileName = await showDialog<String>(
         context: context,
@@ -143,8 +180,17 @@ class RunHistoryProvider with ChangeNotifier {
       );
 
       if (fileName == null || fileName.isEmpty || !context.mounted) return;
-      final file = File('${dir!.path}/$fileName');
+
+      final directory = await FilePicker.platform.getDirectoryPath();
+      if (directory == null) {
+        dev.log("File picker was cancelled", name: "RunHistoryProvider");
+        return;
+      }
+
+      final file = File('$directory/$fileName');
+      await file.create(recursive: true);
       await file.writeAsString(jsonString);
+
       if (!context.mounted) return;
 
       showDialog(
@@ -160,7 +206,17 @@ class RunHistoryProvider with ChangeNotifier {
           ],
         ),
       );
-  }
+    } catch (e) {
+      dev.log("Error saving file: $e", name: "RunHistoryProvider");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error saving file. Please try again."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String buildJsonDownload(List<Run> downloadRuns) {
