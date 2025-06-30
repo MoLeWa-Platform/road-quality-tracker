@@ -21,6 +21,7 @@ class TrackingPage extends StatefulWidget {
 class _TrackingPageState extends State<TrackingPage> {
   late final RunTracker runTracker;
   late final FlutterBackgroundService backgroundService; 
+  String? vehicleType;
 
   @override
   void initState() {
@@ -34,6 +35,96 @@ class _TrackingPageState extends State<TrackingPage> {
     super.dispose();
   }
 
+  Future<String?> selectVehicleType(BuildContext context) async {
+    String? selected;
+
+    return await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Select the Vehicle Type'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: 20,),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            selected = 'Bike';
+                          });
+                        },
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.directions_bike,
+                              size: 35,
+                              color: selected == 'Bike' ? Theme.of(context).colorScheme.primary : Colors.grey,
+                            ),
+                            SizedBox(height: 6),
+                            Text('Bike', 
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontSize:  14, 
+                                fontWeight: FontWeight.w400
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            selected = 'Car';
+                          });
+                        },
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.directions_car_rounded,
+                              size: 35,
+                              color: selected == 'Car' ? Theme.of(context).colorScheme.primary : Colors.grey,
+                            ),
+                            SizedBox(height: 6),
+                            Text('Car',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontSize:  14, 
+                                fontWeight: FontWeight.w400
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context), // Cancel
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selected != null ? () => Navigator.pop(context, selected) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: selected != null
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Start Run'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void toggleRun() {
     if (runTracker.isReady) {
       if (RunTracker.runIsActive.value) { // stop run
@@ -44,7 +135,14 @@ class _TrackingPageState extends State<TrackingPage> {
         }
       } else { // start run
         backgroundService.invoke('startAsForeground');
-        runTracker.startRun();
+        selectVehicleType(context).then((vehicleType) {
+          if (vehicleType != null) {
+            setState(() {
+              this.vehicleType = vehicleType;
+            });
+            runTracker.startRun(vehicleType);
+          }
+        });
       }
     } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -147,7 +245,7 @@ class _TrackingPageState extends State<TrackingPage> {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             SizedBox(height: 50),
-                            if (runIsActive) buildLiveSensorCard(context, point),
+                            if (runIsActive) buildLiveSensorCard(context, point, vehicleType),
                           ],
                         ),
                       ),
@@ -247,7 +345,7 @@ class PlainSensorOutput extends StatelessWidget {
     }
   }
 
-Widget buildLiveSensorCard(BuildContext context, RunPoint? point) {
+Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicleType) {
   final labelStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600);
   final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87);
   final monoStyle = TextStyle(fontFamily: 'monospace', color: Colors.black87);
@@ -295,10 +393,19 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Last Point", style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Last Point", style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.secondary, fontWeight: FontWeight.w400)),
+              if (vehicleType == 'Bike')
+                Icon(Icons.directions_bike, color: Theme.of(context).colorScheme.secondary),
+              if (vehicleType == 'Car')
+                Icon(Icons.directions_car, color: Theme.of(context).colorScheme.secondary),
+            ],
+          ),
           Divider(),
           buildRow("Time", point?.timestamp.toString()),
-          buildRow("Speed", "${point?.speed.toStringAsFixed(1) ?? '0.0'} m/s"),
+          buildRow("Speed", "${point?.speed.toStringAsFixed(1) ?? '0.0'} km/h"),
           SizedBox(height: 4),
           Text("Location", style: labelStyle),
           SizedBox(height: 4),

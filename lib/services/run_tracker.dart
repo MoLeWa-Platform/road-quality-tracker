@@ -158,9 +158,9 @@ class RunTracker {
     _speed = _speed.clear();
   }
 
-  void startRun() async {
+  void startRun(String vehicleType) async {
     Future.microtask(() => {
-      activeRun = Run.create(DateTime.now()),
+      activeRun = Run.create(DateTime.now(), vehicleType),
       runIsActive.value = true,
       addNewPoint(),
     });

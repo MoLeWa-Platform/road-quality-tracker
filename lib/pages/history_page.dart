@@ -231,8 +231,9 @@ class _HistoryPageState extends State<HistoryPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text("Duration: ${run.endTime?.difference(run.startTime) ?? Duration.zero}"),
-                                Text("Points: ${run.runPoints.length}"),
+                                Text("Number or Points: ${run.runPoints.length}"),
+                                Text("Vehicle Type: ${run.vehicleType}"),
+                                Text("Duration: ${run.getFormattedDuration()}"),
                               ],
                             ),
                           ),
