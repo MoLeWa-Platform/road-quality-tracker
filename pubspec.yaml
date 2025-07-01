@@ -6,7 +6,7 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.7.2
-
+  flutter: 3.29.3
 
 dependencies:
   flutter:
@@ -31,6 +31,7 @@ dependencies:
   http: ^1.4.0
   flutter_secure_storage: ^9.0.0
   file_picker: ^10.2.0
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:
