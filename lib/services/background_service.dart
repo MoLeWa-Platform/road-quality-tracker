@@ -76,7 +76,7 @@ void onStart(ServiceInstance service) {
       if (await service.isForegroundService()){
         flutterLocalNotificationsPlugin.show(
           notificationId,
-          'Active RoadQualityTracker',
+          'Active Road Quality Tracker',
           'Your run is currently being tracked!',
           const NotificationDetails(
             android: AndroidNotificationDetails(
