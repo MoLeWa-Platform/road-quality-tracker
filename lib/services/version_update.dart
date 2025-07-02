@@ -107,38 +107,45 @@ class AppUpdater {
   }
 
   static Future<bool?> updateAvailable({
-    Duration cacheAge = Duration.zero,
-  }) async {
-    if (!updateSupported) return false;
+  Duration cacheAge = Duration.zero,
+}) async {
+  if (!updateSupported) return false;
 
-    if (_foundUpdate != null &&
-        _foundUpdateAt != null &&
-        _foundUpdateAt!.add(cacheAge).isAfter(DateTime.now())) {
-      return _foundUpdate;
-    }
+  if (_foundUpdate != null &&
+      _foundUpdateAt != null &&
+      _foundUpdateAt!.add(cacheAge).isAfter(DateTime.now())) {
+    return _foundUpdate;
+  }
 
-    var url = Uri.parse(
-      "https://api.github.com/repos/MoLeWa-Platform/road-quality-tracker/releases/latest",
-    );
-    PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    Map decoded;
-    final response = await HttpClient().getUrl(url).then((request) {
-      request.headers.set(
-        "User-Agent",
-        'MoLeWa-Platform/road-quality-tracker/${packageInfo.version}',
-      );
-      return request.close();
-    });
+  final url = Uri.parse(
+    "https://api.github.com/repos/MoLeWa-Platform/road-quality-tracker/releases/latest",
+  );
+  final packageInfo = await PackageInfo.fromPlatform();
+  Map decoded;
+
+  try {
+    final response = await HttpClient()
+        .getUrl(url)
+        .then((request) {
+          request.headers.set(
+            "User-Agent",
+            'MoLeWa-Platform/road-quality-tracker/${packageInfo.version}',
+          );
+          return request.close();
+        })
+        .timeout(const Duration(seconds: 10));
+
     dev.log(
       'response: ${response.statusCode} ${response.connectionInfo}',
       name: 'VersionUpdate',
     );
+
     if (response.statusCode > 400) {
       dev.log("Gihub release request failed ${response.statusCode}");
-      return false;
+      return null;
     }
 
-    var resp = await response.transform(utf8.decoder).join();
+    final resp = await response.transform(utf8.decoder).join();
     decoded = (jsonDecode(resp) ?? {}) as Map<dynamic, dynamic>;
     latestBuild = int.parse((decoded["tag_name"] as String).split("+")[1]);
     currentBuild = int.parse(packageInfo.buildNumber);
@@ -158,8 +165,17 @@ class AppUpdater {
       updateDate = DateTime.parse(asset["updated_at"]);
       return _foundUpdate = true;
     }
+
     return _foundUpdate = false;
+
+  } on TimeoutException catch (_) {
+    dev.log('Update check timed out', name: 'VersionUpdate');
+    return _foundUpdate = null;
+  } catch (e) {
+    dev.log('Update check error: $e', name: 'VersionUpdate');
+    return _foundUpdate = null;
   }
+}
 
   static Future<HttpClientResponse?> downloadUpdate() async {
     try {

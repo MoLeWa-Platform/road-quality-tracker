@@ -137,7 +137,8 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void showUpdateSnackbar(){
+  void showUpdateSnackbar(bool? available){
+    if (available==false){
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text(
@@ -149,6 +150,19 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: Colors.green[800],
       ),
     );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "Could not connect to the Repository!",
+        ),
+        duration: const Duration(
+          milliseconds: 1500,
+        ),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
+    }
   }
 
   void showConnectionSuccess() async {
@@ -245,7 +259,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       });
                     } else {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        showUpdateSnackbar();
+                        showUpdateSnackbar(available);
                       });  
                     }
 
