@@ -124,6 +124,10 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
                     },
                     icon: const Icon(Icons.verified_user),
                     label: const Text("Ask for Permissions"),
+                    style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            elevation: 3,
+                          ),
                   ) :
                 (_retries > 0) ? 
                   ElevatedButton.icon(
