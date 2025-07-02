@@ -2,7 +2,7 @@ name: road_quality_tracker
 description: "Road Quality Tracker is a Flutter-based mobile app that detects and records road surface quality using your phone’s sensors (e.g., accelerometer and GPS). It logs vibration data, maps the route in real time, and allows users to analyze road conditions for later review."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0+1
+version: 1.0.0+0
 
 environment:
   sdk: ^3.7.2
@@ -32,6 +32,8 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   file_picker: ^10.2.0
   package_info_plus: ^8.3.0
+  open_file: ^3.5.10
+  android_intent_plus: ^4.0.3
 
 dev_dependencies:
   flutter_test:

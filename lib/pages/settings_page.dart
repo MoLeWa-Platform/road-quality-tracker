@@ -4,6 +4,8 @@ import 'dart:io';
 import 'dart:developer' as dev;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../services/version_update.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -26,11 +28,23 @@ class _SettingsPageState extends State<SettingsPage> {
   String _originalUsername = '';
   String _originalPassword = '';
   bool _hasChanged = false;
+  bool _checkingUpdate = false;
+
+  PackageInfo? packageInfo;
 
   @override
   void initState() {
     super.initState();
     loadCredentials();
+    loadPackageInfo();
+  }
+
+  Future<void> loadPackageInfo() async {
+    var packageInfos = await PackageInfo.fromPlatform();
+    setState(() {
+      packageInfo = packageInfos;
+    });
+    return;
   }
 
   Future<void> loadCredentials() async {
@@ -78,60 +92,64 @@ class _SettingsPageState extends State<SettingsPage> {
         );
         return request.close();
       });
-      dev.log('response: ${response.statusCode} ${response.connectionInfo}', name:'Settingspage');
+      dev.log(
+        'response: ${response.statusCode} ${response.connectionInfo}',
+        name: 'Settingspage',
+      );
       if (response.statusCode > 400) {
         showConnectionError(response.statusCode);
-      }
-      else{
+      } else {
         showConnectionSuccess();
       }
     } catch (e) {
-      dev.log('response: ${e.toString()}', name:'Settingspage');
+      dev.log('response: ${e.toString()}', name: 'Settingspage');
       showConnectionError(null);
-
     } finally {
-      dev.log('ended', name:'Settingspage');
+      dev.log('ended', name: 'Settingspage');
     }
   }
 
-  void showConnectionError(int? code) async{
+  void showConnectionError(int? code) async {
     final newError = !_showErrorColor;
-      setState(() {
-        _isRequesting = false;
-        _connectionSuccess = false;
-        _showErrorColor = true;
-      });
-      if (newError){
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: code==null? Text('Connection could not be established.'): Text('Connection could not be established. (Code: $code)'),
-              duration: const Duration(milliseconds: 1300),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-
-          await Future.delayed(const Duration(milliseconds: 1500));
-          if (mounted) {
-            setState(() {
-              _showErrorColor = false;
-            });
-          }
-      }
-  }
-
-  void showConnectionSuccess() async{
     setState(() {
-        _isRequesting = false;
-        _connectionSuccess = true; //response.statusCode == 200;
-        _showErrorColor = false;
-      });
-    ScaffoldMessenger.of(context).showSnackBar(
+      _isRequesting = false;
+      _connectionSuccess = false;
+      _showErrorColor = true;
+    });
+    if (newError) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Connection successful.'),
+          content:
+              code == null
+                  ? Text('Connection could not be established.')
+                  : Text('Connection could not be established. (Code: $code)'),
           duration: const Duration(milliseconds: 1300),
-          backgroundColor: Colors.green,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
+
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (mounted) {
+        setState(() {
+          _showErrorColor = false;
+        });
+      }
+    }
+  }
+
+  void showConnectionSuccess() async {
+    setState(() {
+      _isRequesting = false;
+      _connectionSuccess = true; //response.statusCode == 200;
+      _showErrorColor = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Connection successful.'),
+        duration: const Duration(milliseconds: 1300),
+        backgroundColor: Colors.green[800],
+      ),
+    );
   }
 
   void saveSettings() async {
@@ -169,82 +187,83 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           toolbarHeight: 70,
         ),
-        body:  Column(
-            mainAxisAlignment: MainAxisAlignment.end, // Push down
+        body: Column(
+          mainAxisAlignment: MainAxisAlignment.end, // Push down
+          children: [
+            const SizedBox(height: 25),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: serverUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Server URL',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: usernameController,
+                      decoration: const InputDecoration(labelText: 'Username'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_outline),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: passwordController,
+                      obscureText: !_showPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showPassword = !_showPassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const SizedBox(height: 25),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.cloud_outlined),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: serverUrlController,
-                          decoration: const InputDecoration(
-                            labelText: 'Server URL',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_outline),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: usernameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Username',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.lock_outline),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: passwordController,
-                          obscureText: !_showPassword,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _showPassword ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _showPassword = !_showPassword;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: _saveAndTestConnection,
-                      icon: _isRequesting
-                        ? SizedBox(
+                TextButton.icon(
+                  onPressed: _saveAndTestConnection,
+                  icon:
+                      _isRequesting
+                          ? SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
@@ -254,47 +273,103 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
                           )
-                        : Icon(
+                          : Icon(
                             _connectionSuccess
                                 ? Icons.check_circle_outline
                                 : _showErrorColor
-                                    ? Icons.link_off
-                                    : Icons.link,
-                            color: _connectionSuccess
-                                ? Colors.green
-                                : _showErrorColor
+                                ? Icons.link_off
+                                : Icons.link,
+                            color:
+                                _connectionSuccess
+                                    ? Colors.green[800]
+                                    : _showErrorColor
                                     ? Theme.of(context).colorScheme.error
                                     : null,
                           ),
-                      label: const Text('Check Connection'),
-                    ),
-                  ],
+                  label: const Text('Check Connection'),
                 ),
-                const Spacer(),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ElevatedButton.icon(
-                    onPressed: _hasChanged ? saveSettings : null,
-                    icon: Icon(Icons.save),
-                    label: const Text("Save Settings"),
-                    style: !_hasChanged
-                      ? ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[400],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          elevation: 3,
-                        )
-                      : ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          elevation: 3,
-                        ),
-                    ),
-                  ),
-                const SizedBox(height: 40),
               ],
             ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed:
+                      _checkingUpdate
+                          ? null
+                          : () async {
+                            setState(() => _checkingUpdate = true);
+                            final available =
+                                await AppUpdater.updateAvailable();
+
+                            if (available == true) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                AppUpdater.showUpdateDialog(context);
+                              });
+                            } else {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                        "You're already on the latest version.",
+                                      ),
+                                      duration: const Duration(
+                                        milliseconds: 1500,
+                                      ),
+                                      backgroundColor: Colors.green[800],
+                                    ),
+                                  );
+                              });
+                            }
+
+                            if (mounted) {
+                              setState(() => _checkingUpdate = false);
+                            }
+                          },
+                  icon:
+                      _checkingUpdate
+                          ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Icon(Icons.system_update),
+                  label: const Text("Check for App Updates"),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: ElevatedButton.icon(
+                onPressed: _hasChanged ? saveSettings : null,
+                icon: Icon(Icons.save),
+                label: const Text("Save Settings"),
+                style:
+                    !_hasChanged
+                        ? ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[400],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          elevation: 3,
+                        )
+                        : ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          elevation: 3,
+                        ),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
-      );
-    }
+    );
   }
-  
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:hive/hive.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:road_quality_tracker/services/version_update.dart';
 import 'dart:developer' as dev;
 import 'dart:io';
 import 'home_page.dart';
@@ -16,6 +17,7 @@ class PermissionGate extends StatefulWidget {
 
 class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObserver {
   bool _checking = true;
+  bool _checkingUpdateAvailable = false;
   bool _allGranted = false;
   bool _initialPermissionCheckDone = false;
   bool _minimumGranted = false;
@@ -36,11 +38,23 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
   }
 
   Future<void> _loadContinueFlag() async {
-  final box = await Hive.openBox('settings');
-  setState(() {
-    _continue = box.get('permission_continueAnyway', defaultValue: false);
-    _checking = false;
-  });
+    final box = await Hive.openBox('settings');
+    setState(() {
+      _continue = box.get('permission_continueAnyway', defaultValue: false);
+      _checking = false;
+      _checkingUpdateAvailable = true;
+    });
+    if (_continue) {
+      final available = await AppUpdater.updateAvailable();
+      if (available == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          AppUpdater.showUpdateDialog(context);
+        });
+      }
+    }
+    setState(() {
+      _checkingUpdateAvailable = false;
+    });
   }
 
   @override
@@ -64,7 +78,7 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     ColorScheme appColorScheme = Theme.of(context).colorScheme;
-    if (_checking) {
+    if (_checking || _checkingUpdateAvailable) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),

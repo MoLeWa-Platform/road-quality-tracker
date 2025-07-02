@@ -1,4 +1,4 @@
-package com.example.road_quality_tracker
+package com.molewa.road_quality_tracker
 
 import android.hardware.Sensor
 import android.hardware.SensorEvent

@@ -13,7 +13,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.road_quality_tracker"
+    namespace = "com.molewa.road_quality_tracker"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -31,8 +31,8 @@ android {
         applicationId = "com.molewa.roadqualitytracker"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = flutter.versionCode.toString().toInt()
+        versionName = flutter.versionName.toString()
     }
 
     signingConfigs {
