@@ -11,8 +11,12 @@ import '../services/run_history_provider.dart';
 
 class TrackingPage extends StatefulWidget {
   final RunTracker runTracker;
-  final FlutterBackgroundService backgroundService; 
-  const TrackingPage({super.key, required this.runTracker, required this.backgroundService});
+  final FlutterBackgroundService backgroundService;
+  const TrackingPage({
+    super.key,
+    required this.runTracker,
+    required this.backgroundService,
+  });
 
   @override
   State<TrackingPage> createState() => _TrackingPageState();
@@ -20,7 +24,7 @@ class TrackingPage extends StatefulWidget {
 
 class _TrackingPageState extends State<TrackingPage> {
   late final RunTracker runTracker;
-  late final FlutterBackgroundService backgroundService; 
+  late final FlutterBackgroundService backgroundService;
   String? vehicleType;
 
   @override
@@ -48,7 +52,7 @@ class _TrackingPageState extends State<TrackingPage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(height: 20,),
+                  SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -63,13 +67,19 @@ class _TrackingPageState extends State<TrackingPage> {
                             Icon(
                               Icons.directions_bike,
                               size: 35,
-                              color: selected == 'Bike' ? Theme.of(context).colorScheme.primary : Colors.grey,
+                              color:
+                                  selected == 'Bike'
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.grey,
                             ),
                             SizedBox(height: 6),
-                            Text('Bike', 
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontSize:  14, 
-                                fontWeight: FontWeight.w400
+                            Text(
+                              'Bike',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
@@ -86,13 +96,19 @@ class _TrackingPageState extends State<TrackingPage> {
                             Icon(
                               Icons.directions_car_rounded,
                               size: 35,
-                              color: selected == 'Car' ? Theme.of(context).colorScheme.primary : Colors.grey,
+                              color:
+                                  selected == 'Car'
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.grey,
                             ),
                             SizedBox(height: 6),
-                            Text('Car',
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontSize:  14, 
-                                fontWeight: FontWeight.w400
+                            Text(
+                              'Car',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
@@ -108,11 +124,15 @@ class _TrackingPageState extends State<TrackingPage> {
                   child: Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: selected != null ? () => Navigator.pop(context, selected) : null,
+                  onPressed:
+                      selected != null
+                          ? () => Navigator.pop(context, selected)
+                          : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: selected != null
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey,
+                    backgroundColor:
+                        selected != null
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey,
                     foregroundColor: Colors.white,
                   ),
                   child: Text('Start Run'),
@@ -127,13 +147,22 @@ class _TrackingPageState extends State<TrackingPage> {
 
   void toggleRun() {
     if (runTracker.isReady) {
-      if (RunTracker.runIsActive.value) { // stop run
+      if (RunTracker.runIsActive.value) {
+        // stop run
         Run? completedRun = runTracker.endRun();
         backgroundService.invoke('stopForeground');
         if (completedRun != null) {
           context.read<RunHistoryProvider>().addRun(completedRun);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Saved! Check your run history.", textAlign: TextAlign.center,),
+              duration: Duration(seconds: 1),
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+            ),
+          );
         }
-      } else { // start run
+      } else {
+        // start run
         backgroundService.invoke('startAsForeground');
         selectVehicleType(context).then((vehicleType) {
           if (vehicleType != null) {
@@ -145,14 +174,17 @@ class _TrackingPageState extends State<TrackingPage> {
         });
       }
     } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("We can't access your location. Please check the app's permissions in your system settings."),
-        duration: Duration(seconds: 4),
-        behavior: SnackBarBehavior.fixed,
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
-    );}
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "We can't access your location. Please check the app's permissions in your system settings.",
+          ),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.fixed,
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -162,8 +194,10 @@ class _TrackingPageState extends State<TrackingPage> {
       valueListenable: RunTracker.runIsActive,
       builder: (context, runIsActive, _) {
         String buttonText = runIsActive ? 'END RUN' : 'START RUN';
-        Color buttonColor = runIsActive ? appColorScheme.secondary : appColorScheme.primary;
-        Color buttonTextColor = runIsActive ? appColorScheme.onSecondary : appColorScheme.onPrimary;
+        Color buttonColor =
+            runIsActive ? appColorScheme.secondary : appColorScheme.primary;
+        Color buttonTextColor =
+            runIsActive ? appColorScheme.onSecondary : appColorScheme.onPrimary;
 
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surfaceBright,
@@ -172,19 +206,26 @@ class _TrackingPageState extends State<TrackingPage> {
             children: [
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 90.0, left: 16.0, right: 16.0, bottom: 16.0),
+                  padding: const EdgeInsets.only(
+                    top: 90.0,
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 16.0,
+                  ),
                   child: Column(
                     children: [
                       if (!runIsActive) ...[
                         Text(
                           'Start a Run to Begin Tracking!',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 4),
                         Text(
                           'Currently showing connected sensors…',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.black54),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 25),
@@ -192,13 +233,15 @@ class _TrackingPageState extends State<TrackingPage> {
                       if (runIsActive) ...[
                         Text(
                           'Tracking in Progress',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 4),
                         Text(
                           'Monitoring movement and location…',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.black54),
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 25),
@@ -210,29 +253,7 @@ class _TrackingPageState extends State<TrackingPage> {
               if (!runIsActive)
                 Expanded(
                   child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SizedBox(height: 50),
-                        ValueListenableBuilder<LocationSpec?>(
-                          valueListenable: runTracker.currentRawLocation,
-                          builder: (context, loc, _) {
-                            return PlainCoordinateOutput(location: loc);
-                          },
-                        ),
-                        ValueListenableBuilder<List<AccelerometerEvent>>(
-                          valueListenable: runTracker.currentRawVibration,
-                          builder: (context, vib, _) {
-                            return PlainSensorOutput(
-                              type: 'Accelerometer / Vibration',
-                              valueList: vib,
-                              runIsActive: runIsActive,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                    child: PreRunSensorCard(runTracker: runTracker),
                   ),
                 ),
               if (runIsActive)
@@ -240,15 +261,21 @@ class _TrackingPageState extends State<TrackingPage> {
                   child: Center(
                     child: ValueListenableBuilder<RunPoint?>(
                       valueListenable: runTracker.lastPoint,
-                      builder: (context, point, _) => Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            SizedBox(height: 50),
-                            if (runIsActive) buildLiveSensorCard(context, point, vehicleType),
-                          ],
-                        ),
-                      ),
+                      builder:
+                          (context, point, _) => Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                SizedBox(height: 50),
+                                  buildRunSensorCard(
+                                    context,
+                                    runTracker.activeRun!,
+                                    point,
+                                    vehicleType,
+                                  ),
+                              ],
+                            ),
+                          ),
                     ),
                   ),
                 ),
@@ -264,7 +291,10 @@ class _TrackingPageState extends State<TrackingPage> {
                       foregroundColor: buttonTextColor,
                       textStyle: Theme.of(context).textTheme.titleMedium,
                       elevation: 7,
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 16.0,
+                      ),
                       shape: const StadiumBorder(),
                     ),
                     child: Text(buttonText),
@@ -288,76 +318,160 @@ class PlainCoordinateOutput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-          children: [
-        SizedBox(height: 50),
+      children: [
         Text('Current Location', style: TextStyle(fontSize: 22)),
         SizedBox(height: 10),
-            if (location != null)
-              Text(
-                'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              )
-            else
-              Text('No location yet', style: TextStyle(fontSize: 16)),
+        if (location != null)
+          Text(
+            'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          )
+        else
+          Text('No location yet', style: TextStyle(fontSize: 16)),
         SizedBox(height: 10),
-          ],
+      ],
+    );
+  }
+}
+
+class PlainValueOutput extends StatelessWidget {
+  final String identifier;
+  final double? value;
+  final String unit;
+
+  const PlainValueOutput({
+    super.key,
+    required this.identifier,
+    required this.unit,
+    this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text('Current $identifier', style: TextStyle(fontSize: 22)),
+        SizedBox(height: 10),
+        if (value != null)
+          Text(
+            '${value!.toStringAsFixed(2)} $unit',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          )
+        else
+          Text(
+            'No ${identifier.toLowerCase()} yet',
+            style: TextStyle(fontSize: 16),
+          ),
+        SizedBox(height: 10),
+      ],
     );
   }
 }
 
 class PlainSensorOutput extends StatelessWidget {
-    const PlainSensorOutput({
-      super.key,
-      required this.type,
-      required this.valueList,
-      required this.runIsActive
-    });
+  const PlainSensorOutput({
+    super.key,
+    required this.type,
+    required this.valueList,
+  });
 
-    final String type;
-    final List valueList;
-    final bool runIsActive;
+  final String type;
+  final List valueList;
 
-    @override
-    Widget build(BuildContext context) {
-          return Column(
-                children: !runIsActive ?
-                [
-                  SizedBox(height: 10),
-                  Text(
-                    type,
-                    style: TextStyle(fontSize: 22),
-                  ),
-                  SizedBox(height: 10),
-                    if (valueList.isNotEmpty)
-                      Text(
-                        'X: ${valueList[0].x.toStringAsFixed(2)}, '
-                        'Y: ${valueList[0].y.toStringAsFixed(2)}, '
-                        'Z: ${valueList[0].z.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 16),
-                      )
-                    else
-                      Text('No data available', style: TextStyle(fontSize: 16)),
-                  SizedBox(height: 10),
-                  ]
-                : [],
-            );
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(type, style: TextStyle(fontSize: 22)),
+        SizedBox(height: 10),
+        if (valueList.isNotEmpty)
+          Text(
+            'X: ${valueList[0].x.toStringAsFixed(2)}, '
+            'Y: ${valueList[0].y.toStringAsFixed(2)}, '
+            'Z: ${valueList[0].z.toStringAsFixed(2)}',
+            style: TextStyle(fontSize: 16),
+          )
+        else
+          Text('No data available', style: TextStyle(fontSize: 16)),
+        SizedBox(height: 10),
+      ],
+    );
   }
+}
 
-Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicleType) {
-  final labelStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600);
-  final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87);
-  final monoStyle = TextStyle(fontFamily: 'monospace', color: Colors.black87);
+class PreRunSensorCard extends StatelessWidget {
+  final RunTracker runTracker;
 
-  Widget buildRow(String label, String? value) {
+  const PreRunSensorCard({super.key, required this.runTracker});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: 75),
+          ValueListenableBuilder<LocationSpec?>(
+            valueListenable: runTracker.currentRawLocation,
+            builder: (context, loc, _) {
+              return PlainCoordinateOutput(location: loc);
+            },
+          ),
+          SizedBox(height: 17),
+          ValueListenableBuilder<double?>(
+            valueListenable: runTracker.currentRawSpeed,
+            builder: (context, speed, _) {
+              return PlainValueOutput(
+                identifier: 'Speed',
+                value: speed,
+                unit: 'km/h',
+              );
+            },
+          ),
+          SizedBox(height: 17),
+          ValueListenableBuilder<List<AccelerometerEvent>>(
+            valueListenable: runTracker.currentRawVibration,
+            builder: (context, vib, _) {
+              return PlainSensorOutput(
+                type: 'Current Vibration',
+                valueList: vib,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget buildRunSensorCard (
+  BuildContext context,
+  Run run,
+  RunPoint? point,
+  String? vehicleType,
+) {
+  final labelStyle = Theme.of(
+    context,
+  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 16);
+  final valueStyle = Theme.of(
+    context,
+  ).textTheme.bodyMedium?.copyWith(color: Colors.black87, fontSize: 16);
+  final monoStyle = TextStyle(color: Colors.black87, fontSize: 16);
+
+  Widget buildRow(String label, String? value, [Color? color]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: labelStyle),
-          Text(value ?? '--', style: valueStyle),
+          Text(
+            value ?? '--',
+            style: color!=null ? valueStyle?.copyWith(color: color, fontWeight: FontWeight.w600, fontSize: 17) : valueStyle,
+          ),
         ],
       ),
     );
@@ -374,9 +488,18 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("\t x: ${v?.xCoordinate.toStringAsFixed(2) ?? '0.00'}", style: monoStyle),
-              Text("y: ${v?.yCoordinate.toStringAsFixed(2) ?? '0.00'}", style: monoStyle),
-              Text("z: ${v?.zCoordinate.toStringAsFixed(2) ?? '0.00'}", style: monoStyle),
+              Text(
+                "\t x: ${v?.xCoordinate.toStringAsFixed(2) ?? '0.00'}",
+                style: monoStyle,
+              ),
+              Text(
+                "y: ${v?.yCoordinate.toStringAsFixed(2) ?? '0.00'}",
+                style: monoStyle,
+              ),
+              Text(
+                "z: ${v?.zCoordinate.toStringAsFixed(2) ?? '0.00'}",
+                style: monoStyle,
+              ),
             ],
           ),
         ],
@@ -396,15 +519,29 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Last Point", style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.secondary, fontWeight: FontWeight.w400)),
+              Text(
+                "Last Point",
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 19
+                ),
+              ),
               if (vehicleType == 'Bike')
-                Icon(Icons.directions_bike, color: Theme.of(context).colorScheme.secondary),
+                Icon(
+                  Icons.directions_bike,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               if (vehicleType == 'Car')
-                Icon(Icons.directions_car, color: Theme.of(context).colorScheme.secondary),
+                Icon(
+                  Icons.directions_car,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
             ],
           ),
           Divider(),
-          buildRow("Time", point?.timestamp.toString()),
+          buildRow("Timestamp", point?.timestamp.toString()),
+          buildRow("Passed Time", run.getFormattedDuration()),
           buildRow("Speed", "${point?.speed.toStringAsFixed(1) ?? '0.0'} km/h"),
           SizedBox(height: 4),
           Text("Location", style: labelStyle),
@@ -412,7 +549,7 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("\t Latitude:"),
+              Text("\t Latitude:", style: monoStyle,),
               Expanded(
                 child: Text(
                   point?.location.latitude.toStringAsFixed(6) ?? '--',
@@ -425,7 +562,7 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("\t Longitude:"),
+              Text("\t Longitude:", style: monoStyle,),
               Expanded(
                 child: Text(
                   point?.location.longitude.toStringAsFixed(6) ?? '--',
@@ -437,6 +574,11 @@ Widget buildLiveSensorCard(BuildContext context, RunPoint? point, String? vehicl
           ),
           SizedBox(height: 12),
           buildVectorRow("Vibration", point?.vibrationSpec),
+          buildRow(
+            "Vibration Magnitude",
+            point?.getVibMagnitude(),
+            Theme.of(context).colorScheme.primary,
+          ),
         ],
       ),
     ),

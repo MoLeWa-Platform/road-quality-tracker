@@ -68,7 +68,7 @@ class _HomePageState extends State<HomePage> {
                         Positioned(
                           top: 4,
                           right: 4,
-                          child: Icon(Icons.circle, size: 10, color: Colors.green),
+                          child: Icon(Icons.circle, size: 10, color:Colors.green[800]),
                         ),
                     ],
                   ),

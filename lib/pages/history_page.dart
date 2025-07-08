@@ -163,7 +163,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             IconButton(
                                 icon: Icon(
                                   run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
-                                  color: run.isSynced ? Colors.green : Colors.grey,
+                                  color: run.isSynced ? Colors.green[800] : Colors.grey,
                                   size: 20,
                                 ),
                                 tooltip: "Sync status",
@@ -192,7 +192,7 @@ class _HistoryPageState extends State<HistoryPage> {
                               IconButton(
                                 icon: Icon(
                                   run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
-                                  color: run.isSynced ? Colors.green : Colors.grey,
+                                  color: run.isSynced ? Colors.green[800] : Colors.grey,
                                   size: 20,
                                 ),
                                 tooltip: "Sync status",

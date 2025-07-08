@@ -63,7 +63,7 @@ class RunHistoryProvider with ChangeNotifier {
           content: Text('Upload successful!'),
           duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.fixed,
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.green[800],
         ),
       );
     }
