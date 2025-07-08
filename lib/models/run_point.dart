@@ -1,4 +1,6 @@
 
+import 'dart:math';
+
 import 'package:hive/hive.dart';
 import '../models/dimension_spec.dart';
 import '../models/location_spec.dart';
@@ -19,11 +21,15 @@ class RunPoint extends HiveObject {
   @HiveField(3)
   final double speed;
 
+  @HiveField(4)
+  final double vibMagnitude;
+
   RunPoint({
     required this.timestamp,
     required this.location,
     required this.vibrationSpec,
-    required this.speed
+    required this.speed,
+    required this.vibMagnitude
   });
 
   
@@ -32,6 +38,7 @@ class RunPoint extends HiveObject {
       "\nTime: ${timestamp.toString().split('.').first}" 
       "\nLocation: ${location.toString()}"
       "\nVibration specs: ${vibrationSpec.toString()}"
+      "\nVibration magnitude: $vibMagnitude"
       "\nSpeed: $speed");
   }
 
@@ -40,7 +47,13 @@ class RunPoint extends HiveObject {
     'speed': speed,
     'location' : location.toJson(),
     'vibration': vibrationSpec.toJson(), 
+    'magnitude' : vibMagnitude
   };
+
+  String getVibMagnitude() {
+    final withoutGravity = max(0, vibMagnitude - 9.813);
+    return '${withoutGravity.toStringAsFixed(2)} m/s²';
+  }
 }
 
   String toIsoWithOffset(DateTime? dt) {

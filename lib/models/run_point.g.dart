@@ -21,13 +21,14 @@ class RunPointAdapter extends TypeAdapter<RunPoint> {
       location: fields[1] as LocationSpec,
       vibrationSpec: fields[2] as DimensionalSpec,
       speed: fields[3] as double,
+      vibMagnitude: fields[4] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, RunPoint obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.timestamp)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class RunPointAdapter extends TypeAdapter<RunPoint> {
       ..writeByte(2)
       ..write(obj.vibrationSpec)
       ..writeByte(3)
-      ..write(obj.speed);
+      ..write(obj.speed)
+      ..writeByte(4)
+      ..write(obj.vibMagnitude);
   }
 
   @override

@@ -13,18 +13,22 @@ import '../models/sensor_snapshot.dart';
 import '../services/rotation_vector_stream.dart';
 
 class RunTracker {
+  // model parameter
+  int tactInMs = 800;
+  final minSpeedThreshold = 1.0; // km/h
+
   Run? activeRun;
   bool isReady = false;
   static final ValueNotifier<bool> runIsActive = ValueNotifier<bool>(false);
   final ValueNotifier<RunPoint?> lastPoint = ValueNotifier(null);
   final ValueNotifier<LocationSpec?> currentRawLocation = ValueNotifier(null);
+  final ValueNotifier<double?> currentRawSpeed = ValueNotifier(null);
   final ValueNotifier<List<AccelerometerEvent>> currentRawVibration = ValueNotifier([]);
 
-
-  SensorSnapshot<LocationSpec> _lastLocation = SensorSnapshot();
   SensorSnapshot<LocationSpec> _currentLocation = SensorSnapshot();
+  SensorSnapshot<double?> _speed = SensorSnapshot();
   SensorSnapshot<DimensionalSpec> _vibration = SensorSnapshot();
-  SensorSnapshot<double> _speed = SensorSnapshot();
+  SensorSnapshot<double?> _vibrationMagPeak = SensorSnapshot();
 
   //List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
   vm.Matrix3 _rotationMatrix = vm.Matrix3.identity();
@@ -72,7 +76,7 @@ class RunTracker {
         throw ('Access rights are missing for the phones location data!');
     }
     if (serviceEnabled && (permissionGranted == PermissionStatus.granted)){
-      _locationService.changeSettings(interval: 2000, accuracy: LocationAccuracy.high);
+      _locationService.changeSettings(interval: tactInMs, accuracy: LocationAccuracy.high);
       
       _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
         Future.microtask(() => onNewLocationPoint(locationData));
@@ -83,6 +87,7 @@ class RunTracker {
 
   void onNewLocationPoint(LocationData locationData){
     saveNewLocation(locationData);
+    saveNewSpeed(locationData);
     if (runIsActive.value) {
       addNewPoint();
     }
@@ -91,30 +96,43 @@ class RunTracker {
   bool saveNewLocation(LocationData locationData){
       if (locationData.latitude != null && locationData.longitude != null) {
         final loc = LocationSpec(latitude: locationData.latitude!, longitude: locationData.longitude!);
-                if (_currentLocation.value != null) { 
-          _lastLocation = _currentLocation;
-        }
 
         _currentLocation = _currentLocation.update(loc);
         currentRawLocation.value = loc;
-        if (_lastLocation.value != null && _currentLocation.value != null) {
-          updateSpeed();
-        }
         return true;
       }
       return false;
   }
 
+  bool saveNewSpeed(LocationData locationData){
+    if (locationData.speed != null) {
+      final rawSpeed = locationData.speed! * 3.6;
+      final cleanedSpeed = rawSpeed < minSpeedThreshold ? 0.0 : rawSpeed;
+
+      final newSpeed = _speed.value != null
+        ? 0.1 * _speed.value! + 0.9 * cleanedSpeed
+        : cleanedSpeed;
+      _speed = _speed.update(newSpeed);
+      currentRawSpeed.value = newSpeed;
+      dev.log('old speed: ${_speed.value} new: $cleanedSpeed smoothed: $newSpeed');
+      return true;
+    } else {
+      _speed = _speed.update(0.0);
+      currentRawSpeed.value = null;
+      return false;
+    }
+  }
+
   void addNewPoint(){
     final now = DateTime.now();
-    final threshold = Duration(milliseconds: 1000);
 
-    if (hasAllMeasurementsNeeded(now, threshold)) {
+    if (hasAllMeasurementsNeeded(now)) {
       final point = RunPoint(
         timestamp: now,
         location: _currentLocation.value!,
         vibrationSpec: _vibration.value!, 
         speed: _speed.value!,
+        vibMagnitude: _vibrationMagPeak.value!,
       );
 
       activeRun?.addPoint(point);
@@ -123,28 +141,42 @@ class RunTracker {
     }
   } 
 
-  bool hasAllMeasurementsNeeded(now, threshold){
-    if (_currentLocation.value!=null 
+  bool hasAllMeasurementsNeeded(now){
+    final threshold = Duration(milliseconds: tactInMs);
+    if (_currentLocation.value!=null
+        && _speed.value!=null
+        && _vibration.value!=null
         && _vibration.isFresh(threshold, now)
         && _speed.isFresh(threshold, now)) 
     {
       return true;
     }
     else {
-      return false;
+            return false;
     }
   }
 
-  void onVibrationEvent(event){
-    final rawAccel = vm.Vector3(event.x, event.y, event.z);
-    final worldAccel = _rotationMatrix.transformed(rawAccel);
-    _vibration = _vibration.update(DimensionalSpec(
-      type: 'Vibration',
-      xCoordinate: worldAccel.x,
-      yCoordinate: worldAccel.y,
-      zCoordinate: worldAccel.z,
-    ));
-  }
+  void onVibrationEvent(AccelerometerEvent event) {
+  final rawAccel = vm.Vector3(event.x, event.y, event.z);
+  final worldAccel = _rotationMatrix.transformed(rawAccel);
+  final vib = DimensionalSpec(
+    type: 'Vibration',
+    xCoordinate: worldAccel.x,
+    yCoordinate: worldAccel.y,
+    zCoordinate: worldAccel.z,
+  );
+
+  final newMag = calcVibMagnitude(vib);
+  final now = DateTime.now();
+  final threshold = Duration(milliseconds: tactInMs);
+
+  if (_vibrationMagPeak.value == null || 
+      !_vibrationMagPeak.isFresh(threshold, now) ||
+      newMag  > _vibrationMagPeak.value! ) {
+        _vibrationMagPeak= _vibrationMagPeak.update(newMag);
+        _vibration= _vibration.update(vib);
+      }
+}
 
   void onQuanternionEvent(List<double> event) {
     vm.Quaternion q = vm.Quaternion(event[0], event[1], event[2], event[3]);
@@ -153,8 +185,15 @@ class RunTracker {
     _rotationMatrix = rotationMatrix.clone()..invert();
   }
 
+  double calcVibMagnitude(DimensionalSpec v) {
+  return sqrt(v.xCoordinate * v.xCoordinate +
+              v.yCoordinate * v.yCoordinate +
+              v.zCoordinate * v.zCoordinate);
+  }
+
   void clearSensorSnapshots(){
     _vibration = _vibration.clear();
+    _vibrationMagPeak = _vibrationMagPeak.clear();
     _speed = _speed.clear();
   }
 
@@ -179,48 +218,4 @@ class RunTracker {
     _accelerometerSubscription.cancel();
     _rotationSub?.cancel();
   }
-
-  void updateSpeed() {
-    final lastLoc = _lastLocation.value!;
-    final currentLoc = _currentLocation.value!;
-
-    final timeDelta = _currentLocation.timestamp!.difference(_lastLocation.timestamp!).inSeconds;
-
-    if (timeDelta == 0) {
-      return;
-    }
-
-    final distance = haversineDistance(
-      lastLoc.latitude,
-      lastLoc.longitude,
-      currentLoc.latitude,
-      currentLoc.longitude,
-    );
-
-    final speedMetersPerSecond = distance / timeDelta;
-    final speedKmh = speedMetersPerSecond * 3.6;
-
-    if (speedMetersPerSecond > 30){
-      dev.log('ABNORMAL HIGH SPEED DETECTED - ${speedMetersPerSecond.toStringAsFixed(2)} m/s - GPS GLITCH?', name: 'RunTracker');
-    }
-
-    _speed = _speed.update(speedKmh);
-  }
-
-  double haversineDistance(double lat1, double lon1, double lat2, double lon2) {
-    const earthRadius = 6371000; // meters
-
-    double toRadians(double degree) => degree * pi / 180;
-
-    final dLat = toRadians(lat2 - lat1);
-    final dLon = toRadians(lon2 - lon1);
-
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(toRadians(lat1)) * cos(toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2);
-
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
-    return earthRadius * c;
-  }
-
 }
