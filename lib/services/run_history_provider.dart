@@ -22,8 +22,17 @@ class RunHistoryProvider with ChangeNotifier {
   }
 
   void updateRun(int index, Run updatedRun) {
-    _runBox.putAt(index, updatedRun);
-    notifyListeners();
+    if (index >= 0 && index < _runBox.length) {
+      _runBox.putAt(index, updatedRun);
+      notifyListeners();
+    } else {
+      dev.log('Run index out of bounds!!, could not add run!', name: "RunHistoryProvider");
+    }
+  }
+
+  void updateLatestRun(Run run) {
+    final index = _runBox.length-1;
+    updateRun(index, run);
   }
 
   void deleteRun(int index) {

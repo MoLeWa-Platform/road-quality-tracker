@@ -56,7 +56,7 @@ class Run extends HiveObject {
     );
   }
   
-  void endRun() {
+  void setEndTime() {
     endTime = runPoints.last.timestamp;
   }
 
@@ -79,8 +79,13 @@ class Run extends HiveObject {
   'points': runPoints.map((p) => p.toJson()).toList(),
   };
 
-  String getFormattedDuration() {
-  final duration = (endTime ?? DateTime.now()).difference(startTime);
+  String getFormattedDuration() { 
+  if (endTime==null){
+    if (runPoints.isNotEmpty) {
+      setEndTime();
+  }
+  }
+  final duration = endTime!=null ?  endTime!.difference(startTime) : Duration();
   final hours = duration.inHours;
   final minutes = duration.inMinutes.remainder(60);
   final seconds = duration.inSeconds.remainder(60);
@@ -92,5 +97,5 @@ class Run extends HiveObject {
   } else {
     return '${seconds}s';
   }
-}
+  }
 }

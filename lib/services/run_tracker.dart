@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
+import 'package:road_quality_tracker/services/run_history_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 import 'dart:math';
@@ -16,6 +17,7 @@ class RunTracker {
   // model parameter
   int tactInMs = 800;
   final minSpeedThreshold = 1.0; // km/h
+  Timer? _saveTimer;
 
   Run? activeRun;
   bool isReady = false;
@@ -197,18 +199,28 @@ class RunTracker {
     _speed = _speed.clear();
   }
 
-  void startRun(String vehicleType) async {
-    Future.microtask(() => {
-      activeRun = Run.create(DateTime.now(), vehicleType),
-      runIsActive.value = true,
-      addNewPoint(),
+  void startRun(String vehicleType, RunHistoryProvider runHistoryProvider) async {
+    Future.microtask(() {
+      activeRun = Run.create(DateTime.now(), vehicleType);
+      runIsActive.value = true;
+      addNewPoint();
+      runHistoryProvider.addRun(activeRun!);
+      _saveTimer = Timer.periodic(Duration(seconds: 15), (_) {
+        if (activeRun!= null && runIsActive.value) {
+          dev.log("updating latest Run $activeRun ${runIsActive.value}");
+          activeRun?.setEndTime();
+          runHistoryProvider.updateLatestRun(activeRun!);
+        }
+      });
     });
   }
   
   Run? endRun() {
-    activeRun?.endRun();
+    activeRun?.setEndTime();
     runIsActive.value = false;
     lastPoint.value = null;
+    _saveTimer?.cancel();
+    _saveTimer = null;
     clearSensorSnapshots();
     return activeRun;
   }

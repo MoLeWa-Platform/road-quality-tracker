@@ -169,7 +169,9 @@ class _TrackingPageState extends State<TrackingPage> {
             setState(() {
               this.vehicleType = vehicleType;
             });
-            runTracker.startRun(vehicleType);
+            if (mounted){
+              runTracker.startRun(vehicleType, context.read<RunHistoryProvider>());
+            }
           }
         });
       }
