@@ -36,6 +36,7 @@ Future<FlutterBackgroundService> initService() async {
     onStart: onStart,
     isForegroundMode: false,
     autoStart: true,
+    autoStartOnBoot: true,
     notificationChannelId: notificationChannelId,
     initialNotificationTitle: '',
     initialNotificationContent: '',
@@ -57,7 +58,10 @@ void onStart(ServiceInstance service) {
   dev.log('Started Background Service: ${service.hashCode}', name: 'BackgroundService');
   if (service is AndroidServiceInstance){
     service.on('startAsForeground').listen((event) {
+      final start = DateTime.now();
       service.setAsForegroundService();
+      final time = start.difference(DateTime.now());
+      dev.log("Started Foregroundtask! Took $time.", name: "BackgroundService");
     });
     service.on('stopForeground').listen((event) {
       service.setAsBackgroundService();
@@ -70,7 +74,6 @@ void onStart(ServiceInstance service) {
   
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   const notificationId = 888;
-
   Timer.periodic(const Duration(seconds: 1), (timer) async {
     if (service is AndroidServiceInstance){
       if (await service.isForegroundService()){

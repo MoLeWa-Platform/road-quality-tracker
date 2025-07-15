@@ -20,7 +20,7 @@ class RunTracker {
   Timer? _saveTimer;
 
   Run? activeRun;
-  bool isReady = false;
+  final ValueNotifier<bool> isReady = ValueNotifier<bool>(false);
   static final ValueNotifier<bool> runIsActive = ValueNotifier<bool>(false);
   final ValueNotifier<RunPoint?> lastPoint = ValueNotifier(null);
   final ValueNotifier<LocationSpec?> currentRawLocation = ValueNotifier(null);
@@ -48,8 +48,36 @@ class RunTracker {
       tracker._startLocationWatch()
     );
     tracker.subscribeToSensors();
+    tracker.waitForDataPoints();
     return tracker;
   }
+
+  Future<void> waitForDataPoints () {
+    final completer = Completer<void>();
+
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (_currentLocation.value != null &&
+          _speed.value != null &&
+          _vibration.value != null) {
+        if (!completer.isCompleted) {
+          dev.log('All sensors ready', name: 'RunTracker');
+          timer.cancel();
+          completer.complete();
+          isReady.value = true;
+        }
+      }
+    });
+
+    return completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        dev.log("Sensor readiness timed out.", name: "RunTracker");
+        if (!completer.isCompleted) completer.complete(); // optionally fail silently
+        return;
+      },
+    );
+  }
+
 
   void subscribeToSensors(){
     dev.log('Subcribing to sensors', name: 'RunTracker');
@@ -83,7 +111,6 @@ class RunTracker {
       _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
         Future.microtask(() => onNewLocationPoint(locationData));
       });
-      isReady = true;
     }
   }
 

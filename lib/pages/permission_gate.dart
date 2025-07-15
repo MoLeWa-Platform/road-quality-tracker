@@ -1,3 +1,4 @@
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:hive/hive.dart';
@@ -75,6 +76,44 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
     });
   }
 
+  Future<void> showBatteryOptimizationDialog(BuildContext context) async {
+    const packageName = 'com.molewa.roadqualitytracker'; // update if different
+
+    final intent = AndroidIntent(
+      action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      data: 'package:$packageName',
+    );
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Battery Optimisation"),
+        content: const Text(
+          "To ensure smooth tracking, please disable battery optimization for this app.",
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: const Text("Ok"),
+            onPressed: () async {
+              try {
+                await intent.launch(); // Then launch settings
+              } catch (e) {
+                debugPrint("Failed to launch intent: $e");
+              }
+              finally {
+                Navigator.pop(context); // Close the dialog first
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ColorScheme appColorScheme = Theme.of(context).colorScheme;
@@ -109,9 +148,9 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
                 Icon(Icons.warning_amber_rounded, size: 64, color: appColorScheme.primary),
                 const SizedBox(height: 40),
                 const Text(
-                  "Please activate location services and notifications so the app can function properly.\n\n"
-                  "Location services are needed for recording runs.\n"
-                  "Notifications will inform you when the app is tracking in the background.\n\n"
+                  "Please activate location services and notifications so the app can function properly.\n\n\n"
+                  "Location services are needed for recording runs.\n\n"
+                  "Background tracking needs the permission to send you notifications and turned off battery optimisation.\n\n"
                   "Optionally, if you want to download your data, please enable storage permissions.",
                   style: TextStyle(fontSize: 16),
                   textAlign: TextAlign.center,
@@ -202,7 +241,6 @@ Future<bool> getPermissions() async {
       dev.log('Notification permission was rejected!', name: 'PermissionService');
     }
   }
-  _minimumGranted = minimumGranted;
 
   // STORAGE (Android-specific)
   if (Platform.isAndroid) {
@@ -220,6 +258,18 @@ Future<bool> getPermissions() async {
       }
     }
   }
+
+    // Battery optimization
+  if (!await Permission.ignoreBatteryOptimizations.isGranted) {
+    if (mounted) {
+      await showBatteryOptimizationDialog(context);
+    }
+  }
+  if (!await Permission.ignoreBatteryOptimizations.isGranted) {
+    allGranted = false;
+    minimumGranted = false;
+  }
+  _minimumGranted = minimumGranted;
 
   if (allGranted) {
     dev.log('All Permissions were granted!', name: 'PermissionService');
