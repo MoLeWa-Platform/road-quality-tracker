@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 class RunHistoryProvider with ChangeNotifier {
   final Box<Run> _runBox = Hive.box<Run>('runs');
   final storage = FlutterSecureStorage();
+  bool _writingRun = false;
   
   List<Run> get completedRuns => _runBox.values.toList();
 
@@ -21,9 +22,23 @@ class RunHistoryProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateRun(int index, Run updatedRun) {
+  Future<void> _saveRunThrottled(int index, Run updatedRun) async {
+    if (_writingRun) {
+      dev.log("Skipping write operation as other run update is still processing!", name: 'RunHistoryProvider');
+      return;
+    }
+
+    _writingRun = true;
+    try {
+      await _saveRun(index, updatedRun);
+    } finally {
+      _writingRun = false;
+    }
+  }
+
+  Future<void> _saveRun(int index, Run updatedRun) async {
     if (index >= 0 && index < _runBox.length) {
-      _runBox.putAt(index, updatedRun);
+      await _runBox.putAt(index, updatedRun);
       notifyListeners();
     } else {
       dev.log('Run index out of bounds!!, could not add run!', name: "RunHistoryProvider");
@@ -32,7 +47,17 @@ class RunHistoryProvider with ChangeNotifier {
 
   void updateLatestRun(Run run) {
     final index = _runBox.length-1;
-    updateRun(index, run.copy());
+    _saveRunThrottled(index, run.copy());
+  }
+
+  void updateRun(Run run) {
+    final index = _runBox.values.toList().indexWhere((r) => r.id == run.id);
+    if (index != -1) {
+      _saveRunThrottled(index, run.copy());
+    } else {
+      dev.log("Run not found in box! Saving a new one.", name: "RunHistoryProvider");
+      addRun(run);
+    }
   }
 
   void deleteRun(int index) {

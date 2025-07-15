@@ -151,7 +151,7 @@ class _TrackingPageState extends State<TrackingPage> {
     Run? completedRun = runTracker.endRun();
     backgroundService.invoke('stopForeground');
     if (completedRun != null) {
-      context.read<RunHistoryProvider>().addRun(completedRun);
+      context.read<RunHistoryProvider>().updateRun(completedRun);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

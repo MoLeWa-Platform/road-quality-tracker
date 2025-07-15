@@ -15,9 +15,11 @@ import '../services/rotation_vector_stream.dart';
 
 class RunTracker {
   // model parameter
-  int tactInMs = 800;
+  int tactInMs = 1000;
   final minSpeedThreshold = 1.0; // km/h
   Timer? _saveTimer;
+
+  bool _addingPoint = false;
 
   Run? activeRun;
   final ValueNotifier<bool> isReady = ValueNotifier<bool>(false);
@@ -78,7 +80,6 @@ class RunTracker {
     );
   }
 
-
   void subscribeToSensors(){
     dev.log('Subcribing to sensors', name: 'RunTracker');
     _accelerometerSubscription = accelerometerEventStream().listen((event) {
@@ -118,7 +119,7 @@ class RunTracker {
     saveNewLocation(locationData);
     saveNewSpeed(locationData);
     if (runIsActive.value) {
-      addNewPoint();
+      addNewPointThrottled();
     }
   }
 
@@ -151,6 +152,20 @@ class RunTracker {
       return false;
     }
   }
+
+  void addNewPointThrottled() {
+    if (_addingPoint) {
+      dev.log("Skipping this point as the prior operation is still pending!!", name: "RunTracker", level: 2);
+      return;
+    }
+
+    _addingPoint = true;
+  try {
+    addNewPoint(); 
+  } finally {
+    _addingPoint = false;
+  }
+}
 
   void addNewPoint(){
     final now = DateTime.now();
@@ -230,7 +245,7 @@ class RunTracker {
     Future.microtask(() {
       activeRun = Run.create(DateTime.now(), vehicleType);
       runIsActive.value = true;
-      addNewPoint();
+      addNewPointThrottled();
       runHistoryProvider.addRun(activeRun!);
       _saveTimer = Timer.periodic(Duration(seconds: 15), (_) {
         if (activeRun!= null && runIsActive.value) {
