@@ -7,11 +7,23 @@ import '../models/location_spec.dart';
 
 part 'run_point.g.dart';
 
+extension RunPointCopy on RunPoint {
+  RunPoint copy() {
+    return RunPoint(
+      timestamp: DateTime.fromMillisecondsSinceEpoch(timestamp.millisecondsSinceEpoch),
+      location: location.copy(),
+      vibrationSpec: vibrationSpec.copy(),
+      vibMagnitude: vibMagnitude,
+      speed: speed,
+    );
+  }
+}
+
 @HiveType(typeId: 1)
 class RunPoint extends HiveObject {
   @HiveField(0)
   final DateTime timestamp;
-  
+
   @HiveField(1)
   final LocationSpec location;
   
@@ -20,7 +32,7 @@ class RunPoint extends HiveObject {
   
   @HiveField(3)
   final double speed;
-
+  
   @HiveField(4)
   final double vibMagnitude;
 

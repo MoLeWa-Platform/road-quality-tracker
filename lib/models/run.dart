@@ -6,6 +6,20 @@ import 'package:hive/hive.dart';
 
 part 'run.g.dart';
 
+extension RunCopy on Run {
+  Run copy() {
+    return Run(
+      id: id,
+      name: name,
+      startTime: startTime,
+      endTime: endTime,
+      vehicleType: vehicleType,
+      runPoints: List<RunPoint>.from(runPoints.map((p) => p.copy())), 
+      isSynced: isSynced,
+    );
+}
+}
+
 @HiveType(typeId: 0)
 class Run extends HiveObject {
   @HiveField(0)
@@ -35,7 +49,8 @@ class Run extends HiveObject {
     required this.vehicleType,
     required this.startTime,
     required this.runPoints,
-    required this.isSynced
+    required this.isSynced,
+    this.endTime
   });
 
   factory Run.create(DateTime startTime, String vehicleType) {
@@ -79,23 +94,25 @@ class Run extends HiveObject {
   'points': runPoints.map((p) => p.toJson()).toList(),
   };
 
-  String getFormattedDuration() { 
-  if (endTime==null){
-    if (runPoints.isNotEmpty) {
-      setEndTime();
-  }
-  }
-  final duration = endTime!=null ?  endTime!.difference(startTime) : Duration();
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes.remainder(60);
-  final seconds = duration.inSeconds.remainder(60);
+  String getFormattedDuration({live=false}) { 
+    if (endTime==null){
+      if (runPoints.isNotEmpty) {
+        setEndTime();
+      }
+    }
+    final end =  (endTime==null || live) ?  DateTime.now() : endTime;
+    final duration = end!.difference(startTime);
+    
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
 
-  if (hours > 0) {
-    return '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s';
-  } else if (minutes > 0) {
-    return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
-  } else {
-    return '${seconds}s';
-  }
+    if (hours > 0) {
+      return '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s';
+    } else if (minutes > 0) {
+      return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    } else {
+      return '${seconds}s';
+    }
   }
 }

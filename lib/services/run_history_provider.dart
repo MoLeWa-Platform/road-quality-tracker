@@ -32,7 +32,7 @@ class RunHistoryProvider with ChangeNotifier {
 
   void updateLatestRun(Run run) {
     final index = _runBox.length-1;
-    updateRun(index, run);
+    updateRun(index, run.copy());
   }
 
   void deleteRun(int index) {

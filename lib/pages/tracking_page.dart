@@ -27,7 +27,6 @@ class TrackingPage extends StatefulWidget {
 class _TrackingPageState extends State<TrackingPage> {
   late final RunTracker runTracker;
   late final FlutterBackgroundService backgroundService;
-  String? vehicleType;
   bool _isLoading = false;
 
   @override
@@ -183,10 +182,6 @@ class _TrackingPageState extends State<TrackingPage> {
 
         if (!mounted) return;
 
-        setState(() {
-          this.vehicleType = vehicleType;
-        });
-
         runTracker.startRun(vehicleType, context.read<RunHistoryProvider>());
       } catch (e, st) {
         dev.log('Run start failed: $e', stackTrace: st);
@@ -303,7 +298,6 @@ class _TrackingPageState extends State<TrackingPage> {
                                       context,
                                       runTracker.activeRun!,
                                       point,
-                                      vehicleType,
                                     ),
                                   ],
                                 ),
@@ -395,7 +389,7 @@ class PlainCoordinateOutput extends StatelessWidget {
         if (location != null)
           Text(
             'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
-            style: TextStyle(fontSize: 16),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic,),
             textAlign: TextAlign.center,
           )
         else
@@ -403,7 +397,7 @@ class PlainCoordinateOutput extends StatelessWidget {
               color: Colors.grey,
               fontStyle: FontStyle.italic,
             ),),
-        SizedBox(height: 10),
+        SizedBox(height: 20),
       ],
     );
   }
@@ -430,7 +424,7 @@ class PlainValueOutput extends StatelessWidget {
         if (value != null)
           Text(
             '${value!.toStringAsFixed(2)} $unit',
-            style: TextStyle(fontSize: 16),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic,),
             textAlign: TextAlign.center,
           )
         else
@@ -441,7 +435,7 @@ class PlainValueOutput extends StatelessWidget {
               fontStyle: FontStyle.italic,
             ),
           ),
-        SizedBox(height: 10),
+        SizedBox(height: 20),
       ],
     );
   }
@@ -468,11 +462,11 @@ class PlainSensorOutput extends StatelessWidget {
             'X: ${valueList[0].x.toStringAsFixed(2)}, '
             'Y: ${valueList[0].y.toStringAsFixed(2)}, '
             'Z: ${valueList[0].z.toStringAsFixed(2)}',
-            style: TextStyle(fontSize: 16),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic,),
           )
         else
           Text('No data available', style: TextStyle(fontSize: 16)),
-        SizedBox(height: 10),
+        SizedBox(height: 20),
       ],
     );
   }
@@ -528,8 +522,8 @@ Widget buildRunSensorCard(
   BuildContext context,
   Run run,
   RunPoint? point,
-  String? vehicleType,
 ) {
+  final vehicleType = run.vehicleType;
   final labelStyle = Theme.of(
     context,
   ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 16);
@@ -625,7 +619,8 @@ Widget buildRunSensorCard(
           ),
           Divider(),
           buildRow("Timestamp", point?.timestamp.toString()),
-          buildRow("Passed Time", run.getFormattedDuration()),
+          buildRow("Passed Time", run.getFormattedDuration(live: true)),
+          buildRow("Point Number", run.runPoints.length.toString()),
           buildRow("Speed", "${point?.speed.toStringAsFixed(1) ?? '0.0'} km/h"),
           SizedBox(height: 4),
           Text("Location", style: labelStyle),

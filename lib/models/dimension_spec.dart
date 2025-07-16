@@ -2,6 +2,17 @@ import 'package:hive/hive.dart';
 
 part 'dimension_spec.g.dart';
 
+extension DimensionalSpecCopy on DimensionalSpec {
+  DimensionalSpec copy() {
+    return DimensionalSpec(
+      type: type,
+      xCoordinate: xCoordinate,
+      yCoordinate: yCoordinate,
+      zCoordinate: zCoordinate,
+    );
+  }
+}
+
 @HiveType(typeId: 3)
 class DimensionalSpec extends HiveObject{
   @HiveField(0)

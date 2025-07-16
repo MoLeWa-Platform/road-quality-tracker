@@ -3,6 +3,15 @@ import 'package:hive/hive.dart';
 
 part 'location_spec.g.dart';
 
+extension LocationSpecCopy on LocationSpec {
+  LocationSpec copy() {
+    return LocationSpec(
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
+}
+
 @HiveType(typeId: 2)
 class LocationSpec extends HiveObject{
   @HiveField(0)
