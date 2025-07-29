@@ -25,8 +25,12 @@ class RunTracker {
   bool _addingPoint = false;
 
   Run? activeRun;
+
   final ValueNotifier<bool> isReady = ValueNotifier<bool>(false);
+
   static final ValueNotifier<bool> runIsActive = ValueNotifier<bool>(false);
+  static final ValueNotifier<String?> activeRunId = ValueNotifier(null);
+
   final ValueNotifier<RunPoint?> lastPoint = ValueNotifier(null);
   final ValueNotifier<LocationSpec?> currentRawLocation = ValueNotifier(null);
   final ValueNotifier<double?> currentRawSpeed = ValueNotifier(null);
@@ -309,6 +313,7 @@ class RunTracker {
     Future.microtask(() {
       activeRun = Run.create(DateTime.now(), vehicleType);
       runIsActive.value = true;
+      activeRunId.value = activeRun?.id;
       _logger.startRunLog(activeRun!.id);
       addNewPointThrottled();
       runHistoryProvider.addRun(activeRun!);
@@ -327,6 +332,7 @@ class RunTracker {
   Future<Run?> endRun() async {
     activeRun?.setEndTime();
     runIsActive.value = false;
+    activeRunId.value = null;
     lastPoint.value = null;
     _saveTimer?.cancel();
     _saveTimer = null;

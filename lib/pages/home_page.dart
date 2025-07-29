@@ -93,7 +93,7 @@ class _HomePageState extends State<HomePage> {
                           child: Icon(
                             Icons.circle,
                             size: 10,
-                            color: Colors.green,
+                            color: Colors.green[600],
                           ),
                         ),
                     ],

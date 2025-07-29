@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:road_quality_tracker/pages/log_page.dart';
 import 'package:road_quality_tracker/services/run_logger.dart';
+import 'package:road_quality_tracker/services/run_tracker.dart';
 import '../services/run_history_provider.dart';
 import '../models/run.dart';
 
@@ -83,13 +84,13 @@ class _HistoryPageState extends State<HistoryPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                selectionType == SelectionType.none
-                    ? "Run History"
-                    : selectionType == SelectionType.upload
-                    ? "Upload Runs"
-                    : "Download Runs",
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+                    selectionType == SelectionType.none
+                        ? "Run History"
+                        : selectionType == SelectionType.upload
+                        ? "Upload Runs"
+                        : "Download Runs",
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   Stack(
                     alignment: Alignment.topRight,
                     children: [
@@ -128,10 +129,7 @@ class _HistoryPageState extends State<HistoryPage> {
                               decoration: BoxDecoration(
                                 color: Colors.red,
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                  color:  Colors.red,
-                                  width: 1,
-                                ),
+                                border: Border.all(color: Colors.red, width: 1),
                               ),
                             ),
                           );
@@ -209,7 +207,9 @@ class _HistoryPageState extends State<HistoryPage> {
                           Checkbox(
                             value: _areAllSelected(),
                             onChanged: (checked) {
-                              logger.log('[HISTORY PAGE] Tapped select-all checkbox, with checked=$checked.');
+                              logger.log(
+                                '[HISTORY PAGE] Tapped select-all checkbox, with checked=$checked.',
+                              );
                               setState(() {
                                 if (checked == true) {
                                   selectedRunIds =
@@ -228,129 +228,78 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
               ),
             Expanded(
-              child: ListView.builder(
-                itemCount: completedRuns!.length,
-                itemBuilder: (context, index) {
-                  final run = completedRuns![index];
-                  final isExpanded = expandedIndex == index;
-                  return Column(
-                    children: [
-                      ListTile(
-                        title: Text(run.name),
-                        subtitle: Text("Run on ${run.startTime}"),
-                        trailing:
-                            selectionType != SelectionType.none
-                                ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        run.isSynced
-                                            ? Icons.cloud_done
-                                            : Icons.cloud_upload,
-                                        color:
-                                            run.isSynced
-                                                ? Colors.green[800]
-                                                : Colors.grey,
-                                        size: 20,
+              child: ValueListenableBuilder<String?>(
+                valueListenable: RunTracker.activeRunId,
+                builder: (context, activeRunId, _) {
+                  return ListView.builder(
+                    itemCount: completedRuns!.length,
+                    itemBuilder: (context, index) {
+                      final run = completedRuns![index];
+                      final isExpanded = expandedIndex == index;
+                      final isRunning = run.id == activeRunId;
+
+                      return Column(
+                        children: [
+                          ListTile(
+                            title: Text(run.name),
+                            subtitle: Text("Run on ${run.startTime}"),
+                            trailing:
+                                selectionType != SelectionType.none
+                                    ? _buildSelectionControls(run)
+                                    : isRunning
+                                    ? Padding(
+                                      padding: const EdgeInsets.only(
+                                        right: 12.0,
                                       ),
-                                      tooltip: "Sync status",
-                                      padding: EdgeInsets.zero,
-                                      constraints: BoxConstraints.tightFor(
-                                        width: 32,
-                                        height: 32,
+                                      child: Text(
+                                        "Currently Running ..",
+                                        style: TextStyle(
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.green[600],
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      onPressed: null, // or show info
-                                    ),
-                                    Checkbox(
-                                      value: selectedRunIds.contains(run.id),
-                                      onChanged: (checked) {
-                                        setState(() {
-                                          if (checked == true) {
-                                            selectedRunIds.add(run.id);
-                                          } else {
-                                            selectedRunIds.remove(run.id);
-                                          }
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                )
-                                : Row(
-                                  // mainAxisAlignment: MainAxisAlignment.end,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        run.isSynced
-                                            ? Icons.cloud_done
-                                            : Icons.cloud_upload,
-                                        color:
-                                            run.isSynced
-                                                ? Colors.green[800]
-                                                : Colors.grey,
-                                        size: 20,
-                                      ),
-                                      tooltip: "Sync status",
-                                      padding: EdgeInsets.zero,
-                                      constraints: BoxConstraints.tightFor(
-                                        width: 32,
-                                        height: 32,
-                                      ),
-                                      onPressed: null, // or show info
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete, size: 20),
-                                      tooltip: "Rename run",
-                                      padding: EdgeInsets.zero,
-                                      constraints: BoxConstraints.tightFor(
-                                        width: 32,
-                                        height: 32,
-                                      ),
-                                      onPressed: () => _deleteRun(context, run),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.edit, size: 20),
-                                      tooltip: "Rename run",
-                                      padding: EdgeInsets.zero,
-                                      constraints: BoxConstraints.tightFor(
-                                        width: 32,
-                                        height: 32,
-                                      ),
-                                      onPressed: () => _renameRun(context, run),
-                                    ),
-                                  ],
-                                ),
-                        onTap: () {
-                          logger.log('[HISTORY PAGE] Tapped run to see more details.');
-                          setState(() {
-                            expandedIndex = isExpanded ? null : index;
-                          });
-                        },
-                      ),
-                      if (isExpanded)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 40.0,
-                            top: 8.0,
-                            bottom: 8.0,
+                                    )
+                                    : _buildActionButtons(run),
+                            onTap: () {
+                              logger.log(
+                                '[HISTORY PAGE] Tapped run to see more details.',
+                              );
+                              setState(() {
+                                expandedIndex = isExpanded ? null : index;
+                              });
+                            },
                           ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Number of Points: ${run.runPoints.length}",
+                          if (isExpanded)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 40.0,
+                                top: 8.0,
+                                bottom: 8.0,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Number of Points: ${run.runPoints.length}",
+                                    ),
+                                    Text("Vehicle Type: ${run.vehicleType}"),
+                                    Text(
+                                      "Duration: ${run.getFormattedDuration()}",
+                                    ),
+                                  ],
                                 ),
-                                Text("Vehicle Type: ${run.vehicleType}"),
-                                Text("Duration: ${run.getFormattedDuration()}"),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      Divider(),
-                    ],
+                          Divider(),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -420,7 +369,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                     );
                               } else if (selectionType ==
                                   SelectionType.download) {
-                                    logger.log('[HISTORY PAGE] Downloading runs.');
+                                logger.log('[HISTORY PAGE] Downloading runs.');
                                 context
                                     .read<RunHistoryProvider>()
                                     .downloadSelectedRuns(
@@ -460,6 +409,71 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  Widget _buildSelectionControls(Run run) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(
+            run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+            color: run.isSynced ? Colors.green[800] : Colors.grey,
+            size: 20,
+          ),
+          tooltip: "Sync status",
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints.tightFor(width: 32, height: 32),
+          onPressed: null, // or show info
+        ),
+        Checkbox(
+          value: selectedRunIds.contains(run.id),
+          onChanged: (checked) {
+            setState(() {
+              if (checked == true) {
+                selectedRunIds.add(run.id);
+              } else {
+                selectedRunIds.remove(run.id);
+              }
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(Run run) {
+    return Row(
+      // mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(
+            run.isSynced ? Icons.cloud_done : Icons.cloud_upload,
+            color: run.isSynced ? Colors.green[800] : Colors.grey,
+            size: 20,
+          ),
+          tooltip: "Sync status",
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints.tightFor(width: 32, height: 32),
+          onPressed: null, // or show info
+        ),
+        IconButton(
+          icon: Icon(Icons.delete, size: 20),
+          tooltip: "Rename run",
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints.tightFor(width: 32, height: 32),
+          onPressed: () => _deleteRun(context, run),
+        ),
+        IconButton(
+          icon: Icon(Icons.edit, size: 20),
+          tooltip: "Rename run",
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints.tightFor(width: 32, height: 32),
+          onPressed: () => _renameRun(context, run),
+        ),
+      ],
+    );
+  }
+
   void _renameRun(BuildContext context, Run run) {
     logger.log('[HISTORY PAGE] Opening Rename Run Dialog.');
     final controller = TextEditingController(text: run.name);
@@ -475,14 +489,17 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () { 
+              onPressed: () {
                 logger.log('[HISTORY PAGE] Canceled Rename Run Dialog.');
-                Navigator.pop(context);},
+                Navigator.pop(context);
+              },
               child: Text("Cancel"),
             ),
             ElevatedButton(
               onPressed: () {
-                logger.log('[HISTORY PAGE] Save new run name for run with Id ${run.id}.');
+                logger.log(
+                  '[HISTORY PAGE] Save new run name for run with Id ${run.id}.',
+                );
                 run.name = controller.text;
                 run.save();
                 Navigator.pop(context);
@@ -513,7 +530,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 onPressed: () {
                   logger.log('[HISTORY PAGE] Canceled Delete Run Dialog.');
                   Navigator.pop(context);
-                  },
+                },
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
