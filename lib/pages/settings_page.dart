@@ -66,13 +66,18 @@ class _SettingsPageState extends State<SettingsPage> {
     passwordController.addListener(_checkForChanges);
 
     _hasChanged = false;
+    _checkForChanges();
   }
 
   void _checkForChanges() {
+    final trimmedServerUrl = serverUrlController.text.trim();
+    final trimmedUsername = usernameController.text.trim();
+    final password = passwordController.text;
+
     final changed =
-        serverUrlController.text != _originalServerUrl ||
-        usernameController.text != _originalUsername ||
-        passwordController.text != _originalPassword;
+        trimmedServerUrl != _originalServerUrl.trim() ||
+        trimmedUsername != _originalUsername.trim() ||
+        password != _originalPassword;
 
     if (changed != _hasChanged) {
       setState(() {
@@ -86,6 +91,21 @@ class _SettingsPageState extends State<SettingsPage> {
     final url = Uri.parse(serverUrlController.text);
     final username = usernameController.text;
     final password = passwordController.text;
+
+    if (serverUrlController.text.isEmpty ||
+        username.isEmpty ||
+        password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "Please fill out all credentials before connecting.",
+          ),
+          duration: const Duration(milliseconds: 1500),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isRequesting = true;
@@ -446,27 +466,32 @@ class _SaveButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ElevatedButton.icon(
-      onPressed: hasChanged ? onPressed : null,
+      onPressed: () {
+        if (hasChanged) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Saved changes."),
+              duration: const Duration(milliseconds: 1500),
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+            ),
+          );
+        }
+        onPressed();
+      },
       icon: const Icon(Icons.save),
       label: const Text("Save Settings"),
-      style:
-          !hasChanged
-              ? ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[400],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                elevation: 3,
-              )
-              : ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                elevation: 3,
-              ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor:
+            hasChanged
+                ? Theme.of(context).colorScheme.surface
+                : Theme.of(context).colorScheme.inverseSurface.withAlpha(30),
+        foregroundColor:
+            hasChanged
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurface.withAlpha(100),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        elevation: hasChanged ? 3 : 0, // <- No shadow when not changed
+      ),
     );
   }
 }
