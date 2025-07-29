@@ -60,7 +60,7 @@ class Run extends HiveObject {
     final DateFormat formatter = DateFormat('EEEE, dd.MM.yyyy HH:mm:ss');
     final String formatted = formatter.format(startTime);
 
-    dev.log('created RUN!', name: 'Run');
+    dev.log('Created RUN!', name: 'Run');
     return Run(
       name: formatted,
       id: id,
@@ -77,7 +77,7 @@ class Run extends HiveObject {
 
   void addPoint(RunPoint point) {
     runPoints.add(point);
-    dev.log('created Point! ${point.toPrint()}, and list with ${runPoints.length} elements.', name: 'Run');
+    dev.log('Created Point! Run list has ${runPoints.length} elements.', name: 'Run');
     
   }
 

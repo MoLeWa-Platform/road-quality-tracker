@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:hive/hive.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:road_quality_tracker/services/run_logger.dart';
+import 'package:road_quality_tracker/services/run_tracker.dart';
 import 'package:road_quality_tracker/services/version_update.dart';
 import 'dart:developer' as dev;
 import 'dart:io';
@@ -11,7 +13,10 @@ import 'home_page.dart';
 
 class PermissionGate extends StatefulWidget {
   final FlutterBackgroundService backgroundService;
-  const PermissionGate({super.key, required this.backgroundService});
+  final RunLogger runLogger;
+  final RunTracker runTracker;
+
+  const PermissionGate({super.key, required this.backgroundService, required this.runLogger, required this.runTracker});
   @override
   State<PermissionGate> createState() => _PermissionGateState();
 }
@@ -100,12 +105,10 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
             child: const Text("Ok"),
             onPressed: () async {
               try {
-                await intent.launch(); // Then launch settings
+                Navigator.pop(context); 
+                await intent.launch(); 
               } catch (e) {
                 debugPrint("Failed to launch intent: $e");
-              }
-              finally {
-                Navigator.pop(context); // Close the dialog first
               }
             },
           ),
@@ -126,7 +129,7 @@ class _PermissionGateState extends State<PermissionGate> with WidgetsBindingObse
     }
 
     if (_allGranted || _continue) {
-      return HomePage(backgroundService: widget.backgroundService);
+      return HomePage(backgroundService: widget.backgroundService, runLogger: widget.runLogger, runTracker: widget.runTracker);
     } else {
       return Scaffold(
         body: Center(

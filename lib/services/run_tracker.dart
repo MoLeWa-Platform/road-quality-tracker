@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
 import 'package:road_quality_tracker/services/run_history_provider.dart';
+import 'package:road_quality_tracker/services/run_logger.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 import 'dart:math';
@@ -15,9 +16,11 @@ import '../services/rotation_vector_stream.dart';
 
 class RunTracker {
   // model parameter
-  int tactInMs = 1000;
+  static int tactInMs = 1000;
   final minSpeedThreshold = 1.0; // km/h
   Timer? _saveTimer;
+
+  late RunLogger _logger;
 
   bool _addingPoint = false;
 
@@ -27,16 +30,17 @@ class RunTracker {
   final ValueNotifier<RunPoint?> lastPoint = ValueNotifier(null);
   final ValueNotifier<LocationSpec?> currentRawLocation = ValueNotifier(null);
   final ValueNotifier<double?> currentRawSpeed = ValueNotifier(null);
-  final ValueNotifier<List<AccelerometerEvent>> currentRawVibration = ValueNotifier([]);
+  final ValueNotifier<List<AccelerometerEvent>> currentRawVibration =
+      ValueNotifier([]);
 
   SensorSnapshot<LocationSpec> _currentLocation = SensorSnapshot();
   SensorSnapshot<double?> _speed = SensorSnapshot();
   SensorSnapshot<DimensionalSpec> _vibration = SensorSnapshot();
   SensorSnapshot<double?> _vibrationMagPeak = SensorSnapshot();
 
-  //List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0]; 
+  //List<double> _rotationQuaternion = [0.0, 0.0, 0.0, 1.0];
   vm.Matrix3 _rotationMatrix = vm.Matrix3.identity();
-  
+
   final Location _locationService = Location();
   late StreamSubscription<LocationData>? _locationSubscription;
   late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
@@ -44,17 +48,19 @@ class RunTracker {
 
   RunTracker._();
 
-  static RunTracker create() {
+  static RunTracker create(RunLogger runLogger) {
     final tracker = RunTracker._();
-    Future.microtask(()=> 
-      tracker._startLocationWatch()
-    );
-    tracker.subscribeToSensors();
-    tracker.waitForDataPoints();
+    tracker._logger = runLogger;
     return tracker;
   }
 
-  Future<void> waitForDataPoints () {
+  Future<void> init() async {
+    _startLocationWatch();
+    subscribeToSensors();
+    await waitForDataPoints();
+  }
+
+  Future<void> waitForDataPoints() {
     final completer = Completer<void>();
 
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
@@ -62,7 +68,9 @@ class RunTracker {
           _speed.value != null &&
           _vibration.value != null) {
         if (!completer.isCompleted) {
-          dev.log('All sensors ready', name: 'RunTracker');
+          final msg = 'All sensors ready';
+          _logger.logEvent(msg);
+          dev.log(msg, name: 'RunTracker');
           timer.cancel();
           completer.complete();
           isReady.value = true;
@@ -73,15 +81,21 @@ class RunTracker {
     return completer.future.timeout(
       const Duration(seconds: 30),
       onTimeout: () {
-        dev.log("Sensor readiness timed out.", name: "RunTracker");
-        if (!completer.isCompleted) completer.complete(); // optionally fail silently
+        final msg = "Sensor readiness timed out.";
+          _logger.logEvent(msg);
+        dev.log(msg, name: "RunTracker");
+        if (!completer.isCompleted) {
+          completer.complete(); // optionally fail silently
+        }
         return;
       },
     );
   }
 
-  void subscribeToSensors(){
-    dev.log('Subcribing to sensors', name: 'RunTracker');
+  void subscribeToSensors() {
+    final msg = 'Subcribing to sensors.';
+          _logger.logEvent(msg);
+    dev.log(msg, name: 'RunTracker');
     _accelerometerSubscription = accelerometerEventStream().listen((event) {
       currentRawVibration.value = [event];
       onVibrationEvent(event);
@@ -99,23 +113,32 @@ class RunTracker {
     if (!serviceEnabled) {
       serviceEnabled = await _locationService.requestService();
       if (!serviceEnabled) {
-        throw ('Locationservice couldnt be enabled!');
+        final msg = 'Locationservice couldnt be enabled!';
+        _logger.logWarning(msg);
+        throw (msg);
       }
     }
     PermissionStatus permissionGranted = await _locationService.hasPermission(); //should be enabled through permission gate
     if (permissionGranted != PermissionStatus.granted) {
-        throw ('Access rights are missing for the phones location data!');
+      final msg = 'Access rights are missing for the phones location data!';
+      _logger.logWarning(msg);
+      throw (msg);
     }
-    if (serviceEnabled && (permissionGranted == PermissionStatus.granted)){
-      _locationService.changeSettings(interval: tactInMs, accuracy: LocationAccuracy.high);
-      
-      _locationSubscription = _locationService.onLocationChanged.listen((locationData) {
+    if (serviceEnabled && (permissionGranted == PermissionStatus.granted)) {
+      _locationService.changeSettings(
+        interval: tactInMs,
+        accuracy: LocationAccuracy.high,
+      );
+
+      _locationSubscription = _locationService.onLocationChanged.listen((
+        locationData,
+      ) {
         Future.microtask(() => onNewLocationPoint(locationData));
       });
     }
   }
 
-  void onNewLocationPoint(LocationData locationData){
+  void onNewLocationPoint(LocationData locationData) {
     saveNewLocation(locationData);
     saveNewSpeed(locationData);
     if (runIsActive.value) {
@@ -123,28 +146,31 @@ class RunTracker {
     }
   }
 
-  bool saveNewLocation(LocationData locationData){
-      if (locationData.latitude != null && locationData.longitude != null) {
-        final loc = LocationSpec(latitude: locationData.latitude!, longitude: locationData.longitude!);
+  bool saveNewLocation(LocationData locationData) {
+    if (locationData.latitude != null && locationData.longitude != null) {
+      final loc = LocationSpec(
+        latitude: locationData.latitude!,
+        longitude: locationData.longitude!,
+      );
 
-        _currentLocation = _currentLocation.update(loc);
-        currentRawLocation.value = loc;
-        return true;
-      }
-      return false;
+      _currentLocation = _currentLocation.update(loc);
+      currentRawLocation.value = loc;
+      return true;
+    }
+    return false;
   }
 
-  bool saveNewSpeed(LocationData locationData){
+  bool saveNewSpeed(LocationData locationData) {
     if (locationData.speed != null) {
       final rawSpeed = locationData.speed! * 3.6;
       final cleanedSpeed = rawSpeed < minSpeedThreshold ? 0.0 : rawSpeed;
 
-      final newSpeed = _speed.value != null
-        ? 0.1 * _speed.value! + 0.9 * cleanedSpeed
-        : cleanedSpeed;
+      final newSpeed =
+          _speed.value != null
+              ? 0.1 * _speed.value! + 0.9 * cleanedSpeed
+              : cleanedSpeed;
       _speed = _speed.update(newSpeed);
       currentRawSpeed.value = newSpeed;
-      dev.log('old speed: ${_speed.value} new: $cleanedSpeed smoothed: $newSpeed');
       return true;
     } else {
       _speed = _speed.update(0.0);
@@ -155,26 +181,28 @@ class RunTracker {
 
   void addNewPointThrottled() {
     if (_addingPoint) {
-      dev.log("Skipping this point as the prior operation is still pending!!", name: "RunTracker", level: 2);
+      final msg = "Skipped point as the prior operation is still pending!";
+      dev.log(msg, name: "RunTracker", level: 2);
+      _logger.logWarning(msg);
       return;
     }
 
     _addingPoint = true;
-  try {
-    addNewPoint(); 
-  } finally {
-    _addingPoint = false;
+    try {
+      RunPoint? p = addNewPoint();
+      if (p != null) _logger.logPoint(p.timestamp);
+    } finally {
+      _addingPoint = false;
+    }
   }
-}
 
-  void addNewPoint(){
+  RunPoint? addNewPoint() {
     final now = DateTime.now();
-
     if (hasAllMeasurementsNeeded(now)) {
       final point = RunPoint(
         timestamp: now,
         location: _currentLocation.value!,
-        vibrationSpec: _vibration.value!, 
+        vibrationSpec: _vibration.value!,
         speed: _speed.value!,
         vibMagnitude: _vibrationMagPeak.value!,
       );
@@ -182,45 +210,76 @@ class RunTracker {
       activeRun?.addPoint(point);
       lastPoint.value = point;
       clearSensorSnapshots();
+      return point;
     }
-  } 
+    return null;
+  }
 
-  bool hasAllMeasurementsNeeded(now){
-    final threshold = Duration(milliseconds: tactInMs);
-    if (_currentLocation.value!=null
-        && _speed.value!=null
-        && _vibration.value!=null
-        && _vibration.isFresh(threshold, now)
-        && _speed.isFresh(threshold, now)) 
-    {
+  bool hasAllMeasurementsNeeded(now) {
+    if (_currentLocation.value != null &&
+        vibrationIsValid(now) &&
+        speedIsValid(now)) {
       return true;
+    } else {
+      final threshold = Duration(milliseconds: tactInMs);
+      String invalidValue = '';
+      if (_currentLocation.value == null){
+          invalidValue = 'Location = null';
+      } else if (!speedIsValid(now)) {
+          invalidValue = 'Speed = ${_speed.value}, fresh: ${_speed.isFresh(threshold, now)}';
+      } {
+        if (!_vibration.isFresh(threshold, now)) {
+          invalidValue = 'Vibration: too old. No recent change.';
+        }
+          invalidValue = 'Vibration: value = ${_vibration.value}';
+      }
+      String msg =
+          "[INVALID SENSOR VALUES] $invalidValue.";
+      _logger.logEvent(msg);
+      dev.log(msg, name: "RunTracker");
+      return false;
     }
-    else {
-            return false;
+  }
+
+  bool vibrationIsValid(DateTime now) {
+    final threshold = Duration(milliseconds: tactInMs);
+    if (_vibration.value != null && _vibration.isFresh(threshold, now)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  bool speedIsValid(DateTime now) {
+    final threshold = Duration(milliseconds: tactInMs);
+    if (_speed.value != null && _speed.isFresh(threshold, now)) {
+      return true;
+    } else {
+      return false;
     }
   }
 
   void onVibrationEvent(AccelerometerEvent event) {
-  final rawAccel = vm.Vector3(event.x, event.y, event.z);
-  final worldAccel = _rotationMatrix.transformed(rawAccel);
-  final vib = DimensionalSpec(
-    type: 'Vibration',
-    xCoordinate: worldAccel.x,
-    yCoordinate: worldAccel.y,
-    zCoordinate: worldAccel.z,
-  );
+    final rawAccel = vm.Vector3(event.x, event.y, event.z);
+    final worldAccel = _rotationMatrix.transformed(rawAccel);
+    final vib = DimensionalSpec(
+      type: 'Vibration',
+      xCoordinate: worldAccel.x,
+      yCoordinate: worldAccel.y,
+      zCoordinate: worldAccel.z,
+    );
 
-  final newMag = calcVibMagnitude(vib);
-  final now = DateTime.now();
-  final threshold = Duration(milliseconds: tactInMs);
+    final newMag = calcVibMagnitude(vib);
+    final now = DateTime.now();
+    final threshold = Duration(milliseconds: tactInMs);
 
-  if (_vibrationMagPeak.value == null || 
-      !_vibrationMagPeak.isFresh(threshold, now) ||
-      newMag  > _vibrationMagPeak.value! ) {
-        _vibrationMagPeak= _vibrationMagPeak.update(newMag);
-        _vibration= _vibration.update(vib);
-      }
-}
+    if (_vibrationMagPeak.value == null ||
+        !_vibrationMagPeak.isFresh(threshold, now) ||
+        newMag > _vibrationMagPeak.value!) {
+      _vibrationMagPeak = _vibrationMagPeak.update(newMag);
+      _vibration = _vibration.update(vib);
+    }
+  }
 
   void onQuanternionEvent(List<double> event) {
     vm.Quaternion q = vm.Quaternion(event[0], event[1], event[2], event[3]);
@@ -230,40 +289,50 @@ class RunTracker {
   }
 
   double calcVibMagnitude(DimensionalSpec v) {
-  return sqrt(v.xCoordinate * v.xCoordinate +
-              v.yCoordinate * v.yCoordinate +
-              v.zCoordinate * v.zCoordinate);
+    return sqrt(
+      v.xCoordinate * v.xCoordinate +
+          v.yCoordinate * v.yCoordinate +
+          v.zCoordinate * v.zCoordinate,
+    );
   }
 
-  void clearSensorSnapshots(){
+  void clearSensorSnapshots() {
     _vibration = _vibration.clear();
     _vibrationMagPeak = _vibrationMagPeak.clear();
     _speed = _speed.clear();
   }
 
-  void startRun(String vehicleType, RunHistoryProvider runHistoryProvider) async {
+  void startRun(
+    String vehicleType,
+    RunHistoryProvider runHistoryProvider,
+  ) async {
     Future.microtask(() {
       activeRun = Run.create(DateTime.now(), vehicleType);
       runIsActive.value = true;
+      _logger.startRunLog(activeRun!.id);
       addNewPointThrottled();
       runHistoryProvider.addRun(activeRun!);
       _saveTimer = Timer.periodic(Duration(seconds: 15), (_) {
-        if (activeRun!= null && runIsActive.value) {
-          dev.log("updating latest Run $activeRun ${runIsActive.value}");
+        if (activeRun != null && runIsActive.value) {
+          final msg = "Updating active Run ${activeRun!.id} on disk.";
+          dev.log(msg, name: "RunTracker");
+          _logger.logEvent(msg);
           activeRun?.setEndTime();
           runHistoryProvider.updateLatestRun(activeRun!);
         }
       });
     });
   }
-  
-  Run? endRun() {
+
+  Future<Run?> endRun() async {
     activeRun?.setEndTime();
     runIsActive.value = false;
     lastPoint.value = null;
     _saveTimer?.cancel();
     _saveTimer = null;
     clearSensorSnapshots();
+    await _logger.checkPointDensity(activeRun!);
+    await _logger.endRun();
     return activeRun;
   }
 
@@ -271,5 +340,6 @@ class RunTracker {
     _locationSubscription?.cancel();
     _accelerometerSubscription.cancel();
     _rotationSub?.cancel();
+    _logger.dispose();
   }
 }

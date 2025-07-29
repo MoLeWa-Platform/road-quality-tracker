@@ -1,50 +1,50 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'run.dart';
+part of 'run_log.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class RunAdapter extends TypeAdapter<Run> {
+class RunLogAdapter extends TypeAdapter<RunLog> {
   @override
-  final int typeId = 0;
+  final int typeId = 10;
 
   @override
-  Run read(BinaryReader reader) {
+  RunLog read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Run(
-      name: fields[0] as String,
-      id: fields[1] as String,
-      vehicleType: fields[6] as String,
-      startTime: fields[2] as DateTime,
-      runPoints: (fields[4] as List).cast<RunPoint>(),
-      isSynced: fields[5] as bool,
-      endTime: fields[3] as DateTime?,
-    );
+    return RunLog(
+      runId: fields[0] as String,
+      startTime: fields[1] as DateTime,
+      reviewed: fields[6] as bool,
+    )
+      ..endTime = fields[2] as DateTime?
+      ..recentPoints = (fields[3] as List).cast<DateTime>()
+      ..warnings = (fields[4] as List).cast<String>()
+      ..fullLog = (fields[5] as List).cast<String>();
   }
 
   @override
-  void write(BinaryWriter writer, Run obj) {
+  void write(BinaryWriter writer, RunLog obj) {
     writer
       ..writeByte(7)
       ..writeByte(0)
-      ..write(obj.name)
+      ..write(obj.runId)
       ..writeByte(1)
-      ..write(obj.id)
-      ..writeByte(2)
       ..write(obj.startTime)
-      ..writeByte(3)
+      ..writeByte(2)
       ..write(obj.endTime)
+      ..writeByte(3)
+      ..write(obj.recentPoints)
       ..writeByte(4)
-      ..write(obj.runPoints)
+      ..write(obj.warnings)
       ..writeByte(5)
-      ..write(obj.isSynced)
+      ..write(obj.fullLog)
       ..writeByte(6)
-      ..write(obj.vehicleType);
+      ..write(obj.reviewed);
   }
 
   @override
@@ -53,7 +53,7 @@ class RunAdapter extends TypeAdapter<Run> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is RunAdapter &&
+      other is RunLogAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

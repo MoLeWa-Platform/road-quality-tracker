@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:road_quality_tracker/pages/log_page.dart';
+import 'package:road_quality_tracker/services/run_logger.dart';
 import '../pages/tracking_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/history_page.dart';
@@ -7,14 +9,21 @@ import '../services/run_tracker.dart';
 
 class HomePage extends StatefulWidget {
   final FlutterBackgroundService backgroundService;
-  const HomePage({super.key, required this.backgroundService});
+  final RunLogger runLogger;
+  final RunTracker runTracker;
+
+  const HomePage({
+    super.key,
+    required this.backgroundService,
+    required this.runLogger,
+    required this.runTracker,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final RunTracker runTracker = RunTracker.create();
   int _selectedIndex = 0;
   late final List<Widget> _pages;
 
@@ -22,14 +31,28 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     widget.backgroundService.startService();
+    updateUnreviewedLogState();
     _pages = [
-        TrackingPage(runTracker: runTracker, backgroundService: widget.backgroundService),
-        HistoryPage(),
-        SettingsPage(),
-      ];
+      TrackingPage(
+        runTracker: widget.runTracker,
+        backgroundService: widget.backgroundService,
+        logger: widget.runLogger,
+      ),
+      HistoryPage(logger: widget.runLogger),
+      SettingsPage(logger: widget.runLogger),
+    ];
   }
 
   void _onItemTapped(int index) {
+    final page =
+        index == 0
+            ? 'TrackingPage'
+            : index == 1
+            ? "HistoryPage"
+            : "SettingsPage";
+    widget.runLogger.log(
+      '[HOME PAGE] Tapped on index $index ($page) in MenuBar.',
+    );
     setState(() {
       _selectedIndex = index;
     });
@@ -38,12 +61,11 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     ColorScheme appColorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: Container(
-              color: appColorScheme.surfaceContainer,
-              child: _pages[_selectedIndex],
-            ),
+        color: appColorScheme.surfaceContainer,
+        child: _pages[_selectedIndex],
+      ),
       bottomNavigationBar: ValueListenableBuilder<bool>(
         valueListenable: RunTracker.runIsActive,
         builder: (context, isTracking, _) {
@@ -68,15 +90,49 @@ class _HomePageState extends State<HomePage> {
                         Positioned(
                           top: 4,
                           right: 4,
-                          child: Icon(Icons.circle, size: 10, color:Colors.green[800]),
+                          child: Icon(
+                            Icons.circle,
+                            size: 10,
+                            color: Colors.green,
+                          ),
                         ),
                     ],
                   ),
                 ),
                 label: 'Tracking',
               ),
-              const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Run History'),
-              const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+              BottomNavigationBarItem(
+                icon: SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.settings),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: hasUnreviewedLogsNotifier,
+                        builder: (context, hasUnreviewed, _) {
+                          if (!hasUnreviewed) return const SizedBox.shrink();
+                          return const Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Icon(
+                              Icons.circle,
+                              size: 9,
+                              color: Colors.red,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                label: 'Run History',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Settings',
+              ),
             ],
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,

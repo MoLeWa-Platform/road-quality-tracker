@@ -5,15 +5,18 @@ import 'dart:developer' as dev;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:road_quality_tracker/services/run_logger.dart';
 import '../services/version_update.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  final RunLogger logger;
+  const SettingsPage({super.key, required this.logger});
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  late RunLogger logger;
   final TextEditingController serverUrlController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -35,6 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    logger = widget.logger;
     loadCredentials();
     loadPackageInfo();
   }
@@ -48,6 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> loadCredentials() async {
+    logger.log('[SETTINGS PAGE] Loading Credentials.');
     serverUrlController.text = await storage.read(key: 'serverUrl') ?? '';
     usernameController.text = await storage.read(key: 'username') ?? '';
     passwordController.text = await storage.read(key: 'password') ?? '';
@@ -77,6 +82,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveAndTestConnection() async {
+    logger.log('[SETTINGS PAGE] Testing connection after button press.');
     final url = Uri.parse(serverUrlController.text);
     final username = usernameController.text;
     final password = passwordController.text;
@@ -137,31 +143,23 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void showUpdateSnackbar(bool? available){
-    if (available==false){
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          "You're already on the latest version.",
+  void showUpdateSnackbar(bool? available) {
+    if (available == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("You're already on the latest version."),
+          duration: const Duration(milliseconds: 1500),
+          backgroundColor: Colors.green[800],
         ),
-        duration: const Duration(
-          milliseconds: 1500,
-        ),
-        backgroundColor: Colors.green[800],
-      ),
-    );
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          "Could not connect to the Repository!",
+        SnackBar(
+          content: const Text("Could not connect to the Repository!"),
+          duration: const Duration(milliseconds: 1500),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
-        duration: const Duration(
-          milliseconds: 1500,
-        ),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
-    );
+      );
     }
   }
 
@@ -181,6 +179,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void saveSettings() async {
+    logger.log('[SETTINGS PAGE] Saving Settings after button press.');
     await storage.write(key: 'serverUrl', value: serverUrlController.text);
     await storage.write(key: 'username', value: usernameController.text);
     await storage.write(key: 'password', value: passwordController.text);
@@ -250,8 +249,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   checkingUpdate: _checkingUpdate,
                   onPressed: () async {
                     setState(() => _checkingUpdate = true);
-                    final available =
-                        await AppUpdater.updateAvailable();
+                    final available = await AppUpdater.updateAvailable();
 
                     if (available == true) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -260,7 +258,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     } else {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         showUpdateSnackbar(available);
-                      });  
+                      });
                     }
 
                     if (mounted) {
@@ -314,9 +312,7 @@ class _LoginCredentialsSection extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: serverUrlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Server URL',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Server URL'),
                 ),
               ),
             ],
@@ -385,29 +381,31 @@ class _TestConnectionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton.icon(
       onPressed: onPressed,
-      icon: isRequesting
-          ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
+      icon:
+          isRequesting
+              ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
                 ),
+              )
+              : Icon(
+                connectionSuccess
+                    ? Icons.check_circle_outline
+                    : showErrorColor
+                    ? Icons.link_off
+                    : Icons.link,
+                color:
+                    connectionSuccess
+                        ? Colors.green[800]
+                        : showErrorColor
+                        ? Theme.of(context).colorScheme.error
+                        : null,
               ),
-            )
-          : Icon(
-              connectionSuccess
-                  ? Icons.check_circle_outline
-                  : showErrorColor
-                      ? Icons.link_off
-                      : Icons.link,
-              color: connectionSuccess
-                  ? Colors.green[800]
-                  : showErrorColor
-                      ? Theme.of(context).colorScheme.error
-                      : null,
-            ),
       label: const Text('Check Connection'),
     );
   }
@@ -426,13 +424,14 @@ class _CheckUpdateButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton.icon(
       onPressed: checkingUpdate ? null : onPressed,
-      icon: checkingUpdate
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.system_update),
+      icon:
+          checkingUpdate
+              ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+              : const Icon(Icons.system_update),
       label: const Text("Check for App Updates"),
     );
   }
@@ -442,10 +441,7 @@ class _SaveButton extends StatelessWidget {
   final bool hasChanged;
   final VoidCallback onPressed;
 
-  const _SaveButton({
-    required this.hasChanged,
-    required this.onPressed,
-  });
+  const _SaveButton({required this.hasChanged, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -453,23 +449,24 @@ class _SaveButton extends StatelessWidget {
       onPressed: hasChanged ? onPressed : null,
       icon: const Icon(Icons.save),
       label: const Text("Save Settings"),
-      style: !hasChanged
-          ? ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey[400],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
+      style:
+          !hasChanged
+              ? ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[400],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                elevation: 3,
+              )
+              : ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                elevation: 3,
               ),
-              elevation: 3,
-            )
-          : ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              elevation: 3,
-            ),
     );
   }
 }

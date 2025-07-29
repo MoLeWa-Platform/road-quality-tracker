@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:road_quality_tracker/models/run_log.dart';
 import 'package:road_quality_tracker/services/background_service.dart';
+import 'package:road_quality_tracker/services/run_logger.dart';
+import 'package:road_quality_tracker/services/run_tracker.dart';
 
 import 'services/run_history_provider.dart';
 import 'pages/permission_gate.dart';
@@ -47,29 +50,40 @@ Future<void> startServiceAndWait(FlutterBackgroundService backgroundService) asy
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final backgroundService = await initService();
-  await startServiceAndWait(backgroundService);
-
   await Hive.initFlutter();
   Hive.registerAdapter(RunAdapter());
   Hive.registerAdapter(RunPointAdapter());
   Hive.registerAdapter(DimensionalSpecAdapter());
   Hive.registerAdapter(LocationSpecAdapter());
+  Hive.registerAdapter(RunLogAdapter());
   await Hive.openBox<Run>('runs');
+
+  final runHistory = RunHistoryProvider();
+
+  final runLogger = await RunLogger.create(runHistory);
+  final runTracker = RunTracker.create(runLogger);
+
+  final backgroundService = await initService();
+  await startServiceAndWait(backgroundService);
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) => RunHistoryProvider(),
+      create: (_) => runHistory,
       child: RoadQualityTrackerApp(
         backgroundService: backgroundService,
-      ), // replace with your root widget
+        runLogger: runLogger,
+        runTracker: runTracker,
+      ),
     ),
   );
 }
 
 class RoadQualityTrackerApp extends StatelessWidget {
   final FlutterBackgroundService backgroundService;
-  const RoadQualityTrackerApp({super.key, required this.backgroundService});
+  final RunLogger runLogger;
+  final RunTracker runTracker;
+
+  const RoadQualityTrackerApp({super.key, required this.backgroundService, required this.runLogger, required this.runTracker});
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +95,7 @@ class RoadQualityTrackerApp extends StatelessWidget {
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         ),
-        home: PermissionGate(backgroundService: backgroundService),
+        home: PermissionGate(backgroundService: backgroundService, runLogger: runLogger, runTracker: runTracker),
       ),
     );
   }

@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:hive/hive.dart';
+import 'package:road_quality_tracker/models/run_log.dart';
+import 'package:road_quality_tracker/pages/log_page.dart';
+import 'package:road_quality_tracker/services/run_logger.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:provider/provider.dart';
 import '../models/dimension_spec.dart';
@@ -13,11 +17,14 @@ import 'dart:developer' as dev;
 
 class TrackingPage extends StatefulWidget {
   final RunTracker runTracker;
+  final RunLogger logger;
   final FlutterBackgroundService backgroundService;
+
   const TrackingPage({
     super.key,
     required this.runTracker,
     required this.backgroundService,
+    required this.logger,
   });
 
   @override
@@ -26,6 +33,7 @@ class TrackingPage extends StatefulWidget {
 
 class _TrackingPageState extends State<TrackingPage> {
   late final RunTracker runTracker;
+  late RunLogger logger;
   late final FlutterBackgroundService backgroundService;
   bool _isLoading = false;
 
@@ -33,12 +41,75 @@ class _TrackingPageState extends State<TrackingPage> {
   void initState() {
     super.initState();
     runTracker = widget.runTracker;
+    logger = widget.logger;
+    runTracker.init();
     backgroundService = widget.backgroundService;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final runHistory = Provider.of<RunHistoryProvider>(
+        context,
+        listen: false,
+      );
+      if (!logger.hasShownBugPopup) {
+        final lastUnreviewed = await logger.getMostRecentUnreviewedLog();
+        final Run? lastRun = runHistory.getMostRecentRun();
+        if (lastUnreviewed != null &&
+            lastRun != null &&
+            lastUnreviewed.runId == lastRun.id) {
+          _showBugLogDialog(lastUnreviewed);
+          logger.markBugPopupShown();
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Future<void> checkLastRunForBugs(BuildContext context, Run run) async {
+    final bugBox = await Hive.openBox('runLoggerBugReports');
+    final latestLog = bugBox.values.cast<RunLog>().lastOrNull;
+    await bugBox.close();
+
+    if (!mounted) return;
+
+    if (latestLog != null && !latestLog.reviewed && latestLog.runId == run.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showBugLogDialog(latestLog);
+      });
+    }
+    updateUnreviewedLogState();
+  }
+
+  void _showBugLogDialog(RunLog log) {
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text("Warning Detected"),
+            content: const Text(
+              "A warning occurred during your last run.\nWould you like to view the log?",
+            ),
+            actions: [
+              TextButton(
+                child: const Text("Later"),
+                onPressed: () => Navigator.pop(context),
+              ),
+              ElevatedButton(
+                child: const Text("View Log"),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LogPage()),
+                  );
+                },
+              ),
+            ],
+          ),
+    );
   }
 
   Future<String?> selectVehicleType(BuildContext context) async {
@@ -147,10 +218,11 @@ class _TrackingPageState extends State<TrackingPage> {
     );
   }
 
-  void _stopRun() {
-    Run? completedRun = runTracker.endRun();
+  void _stopRun() async {
+    logger.log('[TRACKING PAGE] Tapped StopRun button. Initiate end.');
+    Run? completedRun = await runTracker.endRun();
     backgroundService.invoke('stopForeground');
-    if (completedRun != null) {
+    if (completedRun != null && mounted) {
       context.read<RunHistoryProvider>().updateRun(completedRun);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -162,6 +234,7 @@ class _TrackingPageState extends State<TrackingPage> {
           backgroundColor: Theme.of(context).colorScheme.secondary,
         ),
       );
+      checkLastRunForBugs(context, completedRun);
     }
   }
 
@@ -333,28 +406,29 @@ class _TrackingPageState extends State<TrackingPage> {
                             ],
                           ),
                           SizedBox(height: 50),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                if (!isReady) Icon(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (!isReady)
+                                Icon(
                                   Icons.hourglass_top,
                                   size: 14,
                                   color: Colors.grey,
                                 ),
-                                const SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
-                                  !isReady ? "Setting up sensors.." : "",
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.labelMedium?.copyWith(
-                                    color: Colors.grey,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  textAlign: TextAlign.end,
+                                !isReady ? "Setting up sensors.." : "",
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.labelMedium?.copyWith(
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
                                 ),
-                                const SizedBox(width: 6),
-                              ],
-                            ),
+                                textAlign: TextAlign.end,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                          ),
                         ],
                       );
                     },
@@ -389,14 +463,19 @@ class PlainCoordinateOutput extends StatelessWidget {
         if (location != null)
           Text(
             'Lat: ${location!.latitude.toStringAsFixed(6)}\nLon: ${location!.longitude.toStringAsFixed(6)}',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic,),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
             textAlign: TextAlign.center,
           )
         else
-          Text('No location yet', style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          Text(
+            'No location yet',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: Colors.grey,
               fontStyle: FontStyle.italic,
-            ),),
+            ),
+          ),
         SizedBox(height: 20),
       ],
     );
@@ -424,7 +503,9 @@ class PlainValueOutput extends StatelessWidget {
         if (value != null)
           Text(
             '${value!.toStringAsFixed(2)} $unit',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic,),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
             textAlign: TextAlign.center,
           )
         else
@@ -462,7 +543,9 @@ class PlainSensorOutput extends StatelessWidget {
             'X: ${valueList[0].x.toStringAsFixed(2)}, '
             'Y: ${valueList[0].y.toStringAsFixed(2)}, '
             'Z: ${valueList[0].z.toStringAsFixed(2)}',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic,),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
           )
         else
           Text('No data available', style: TextStyle(fontSize: 16)),
@@ -518,11 +601,7 @@ class PreRunSensorCard extends StatelessWidget {
   }
 }
 
-Widget buildRunSensorCard(
-  BuildContext context,
-  Run run,
-  RunPoint? point,
-) {
+Widget buildRunSensorCard(BuildContext context, Run run, RunPoint? point) {
   final vehicleType = run.vehicleType;
   final labelStyle = Theme.of(
     context,
