@@ -22,7 +22,7 @@ class RunLogger {
   final List<String> _recentWarnings = [];
 
   Timer? _saveTimer;
-  final int _saveIntervalSeconds = 15;
+  final int _saveIntervalSeconds = 17;
   final int _maxBufferedPoints = 15;
 
   Timer? _inactivityTimer;
@@ -62,9 +62,7 @@ class RunLogger {
   }
 
   Future<void> startRunLog(String runId) async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     dev.log("Starting Runlog", name: "RunLogger");
     if (_liveBox.get('lastRunLog') != null) {
       checkForSuddenShutdown();
@@ -91,9 +89,7 @@ class RunLogger {
   }
 
   Future<void> saveInitialRunLog(String runId) async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     await cleanState();
     dev.log("Starting saveInitialRunLog", name: "RunLogger");
     _runId = runId;
@@ -118,9 +114,7 @@ class RunLogger {
   }
 
   Future<void> endRun() async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     RunLog log = _liveBox.get("lastRunLog");
     final endTime = DateTime.now();
     final duration = endTime.difference(log.startTime);
@@ -134,9 +128,7 @@ class RunLogger {
   }
 
   Future<void> finishUpRun() async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     final bugReportBox = await Hive.openBox(_hiveBoxNameBugs);
     RunLog log = _liveBox.get("lastRunLog");
     if (log.warnings.isNotEmpty) {
@@ -153,9 +145,7 @@ class RunLogger {
   }
 
   Future<void> cleanState() async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     _saveTimer?.cancel();
     _saveTimer = null;
     _inactivityTimer?.cancel();
@@ -185,9 +175,7 @@ class RunLogger {
   }
 
   Future<void> checkForSuddenShutdown({Run? run}) async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     dev.log("Checking for sudden shutdown, ", name: "RunLogger");
     final lastLog = _liveBox.get('lastRunLog');
     if (lastLog != null && lastLog.endTime == null) {
@@ -257,16 +245,18 @@ class RunLogger {
 
   Future<void> checkPointDensity(Run run) async {
     num supposedTactInMs = RunTracker.tactInMs;
-    num lowerMargin = 0.20;
+    num margin = 0.20; // 20%
 
     num pointNumber = run.runPoints.length;
     Duration runTime = run.endTime!.difference(run.startTime);
-    if (runTime > Duration(seconds: 20)){ // avoid false warnings for very short runs
+    if (runTime > Duration(seconds: 20)) {
+      // avoid false warnings for very short runs
       num actualTact = runTime.inMilliseconds / pointNumber;
-      if (actualTact < (supposedTactInMs * (1 - lowerMargin))) {
+      if (actualTact > (supposedTactInMs * (1 + margin))) {
+        // if 20% slower tact the expected
         final warning =
             "[LOW POINT COUNT] Less points measured than supposed to! Pointnumber: $pointNumber, "
-            "Runtime: ${runTime.inSeconds}s, supposedTact: ${supposedTactInMs}ms, actualTact ${actualTact}ms!";
+            "Runtime: ${runTime.inSeconds}s, supposedTact: min. 1 point every ${supposedTactInMs}ms, actualTact: ${actualTact}ms!";
         logWarning(warning);
         dev.log(
           "logged WARNING: ${getTs()}] - [WARNING] $warning",
@@ -275,7 +265,7 @@ class RunLogger {
         _saveRunLog();
       } else {
         final info =
-            "[POINT COUNT] Point density looks fine! Pointnumber: $pointNumber,"
+            "[POINT COUNT] Point density looks fine. Pointnumber: $pointNumber, "
             "Runtime: ${runTime.inSeconds}s, supposedTact: ${supposedTactInMs}ms, actualTact ${actualTact}ms.";
         logEvent(info);
         _saveRunLog();
@@ -345,9 +335,7 @@ class RunLogger {
   }
 
   Future<void> _saveRunLog({DateTime? endTime}) async {
-    if (!_liveBox.isOpen) {
     await reloadLiveBox();
-    }
     final currentRunLog = _liveBox.get('lastRunLog') as RunLog?;
     if (currentRunLog != null) {
       _flushLastRepeatingLog(currentRunLog);
@@ -380,7 +368,9 @@ class RunLogger {
     final repeatSuffix = _lastEventCount > 1 ? " - [${_lastEventCount}x]" : "";
     final formattedLog = "[$timestamp] - [LOG] $_lastEventMessage$repeatSuffix";
 
-    _recentLogs.add(formattedLog);
+    if (!_recentLogs.contains(formattedLog)) {
+      _recentLogs.add(formattedLog);
+    }
 
     final firstInLine = _recentLogs.first.split(' - ')[1];
     if (log.fullLog.isNotEmpty && log.fullLog.last.contains(firstInLine)) {

@@ -86,7 +86,7 @@ class RunTracker {
       const Duration(seconds: 30),
       onTimeout: () {
         final msg = "Sensor readiness timed out.";
-          _logger.logEvent(msg);
+        _logger.logEvent(msg);
         dev.log(msg, name: "RunTracker");
         if (!completer.isCompleted) {
           completer.complete(); // optionally fail silently
@@ -98,7 +98,7 @@ class RunTracker {
 
   void subscribeToSensors() {
     final msg = 'Subcribing to sensors.';
-          _logger.logEvent(msg);
+    _logger.logEvent(msg);
     dev.log(msg, name: 'RunTracker');
     _accelerometerSubscription = accelerometerEventStream().listen((event) {
       currentRawVibration.value = [event];
@@ -128,8 +128,6 @@ class RunTracker {
       _logger.logWarning(msg);
       throw (msg);
     }
-
-    await _locationService.enableBackgroundMode(enable: true);
 
     if (serviceEnabled && (permissionGranted == PermissionStatus.granted)) {
       _locationService.changeSettings(
@@ -199,6 +197,9 @@ class RunTracker {
     try {
       RunPoint? p = addNewPoint();
       if (p != null) _logger.logPoint(p.timestamp);
+      final msg = "Added new point to the Run.";
+      dev.log(msg, name: "RunTracker");
+      _logger.logEvent(msg);
     } finally {
       _addingPoint = false;
     }
@@ -230,19 +231,20 @@ class RunTracker {
       return true;
     } else {
       final threshold = Duration(milliseconds: tactInMs);
-      String invalidValue = '';
-      if (_currentLocation.value == null){
-          invalidValue = 'Location = null';
+      String msg = '';
+      if (_currentLocation.value == null) {
+        msg = '[INVALID SENSOR VALUES] Location = null';
       } else if (!speedIsValid(now)) {
-          invalidValue = 'Speed = ${_speed.value}, fresh: ${_speed.isFresh(threshold, now)}';
-      } {
-        if (!_vibration.isFresh(threshold, now)) {
-          invalidValue = 'Vibration: too old. No recent change.';
-        }
-          invalidValue = 'Vibration: value = ${_vibration.value}';
+        msg =
+            '[INVALID SENSOR VALUES] Speed = ${_speed.value}, isFresh: ${_speed.isFresh(threshold, now)}';
       }
-      String msg =
-          "[INVALID SENSOR VALUES] $invalidValue.";
+      {
+        if (!_vibration.isFresh(threshold, now)) {
+          msg = '[INVALID SENSOR VALUES] Vibration: not fresh.';
+        }
+        msg =
+            'Vibration: Value=${_vibration.value}. Probaly no change since last Vibration. Vehicle stands still?'; // not really invalid since expected sensor behaviour if phone is still
+      }
       _logger.logEvent(msg);
       dev.log(msg, name: "RunTracker");
       return false;
@@ -321,9 +323,9 @@ class RunTracker {
       _logger.startRunLog(activeRun!.id);
       addNewPointThrottled();
       runHistoryProvider.addRun(activeRun!);
-      _saveTimer = Timer.periodic(Duration(seconds: 15), (_) {
+      _saveTimer = Timer.periodic(Duration(seconds: 13), (_) {
         if (activeRun != null && runIsActive.value) {
-          final msg = "Updating active Run ${activeRun!.id} on disk.";
+          final msg = "Updating active Run on disk.";
           dev.log(msg, name: "RunTracker");
           _logger.logEvent(msg);
           activeRun?.setEndTime();
