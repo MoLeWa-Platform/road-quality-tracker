@@ -128,10 +128,14 @@ class RunTracker {
       _logger.logWarning(msg);
       throw (msg);
     }
+
+    await _locationService.enableBackgroundMode(enable: true);
+
     if (serviceEnabled && (permissionGranted == PermissionStatus.granted)) {
       _locationService.changeSettings(
         interval: tactInMs,
-        accuracy: LocationAccuracy.high,
+        accuracy: LocationAccuracy.navigation,
+        pausesLocationUpdatesAutomatically: false,
       );
 
       _locationSubscription = _locationService.onLocationChanged.listen((
