@@ -238,66 +238,49 @@ class _HistoryPageState extends State<HistoryPage> {
                       final isExpanded = expandedIndex == index;
                       final isRunning = run.id == activeRunId;
 
-                      return Column(
-                        children: [
-                          ListTile(
-                            title: Text(run.name),
-                            subtitle: Text("Run on ${run.startTime}"),
-                            trailing:
-                                selectionType != SelectionType.none
-                                    ? _buildSelectionControls(run)
-                                    : isRunning
-                                    ? Padding(
-                                      padding: const EdgeInsets.only(
-                                        right: 12.0,
-                                      ),
-                                      child: Text(
-                                        "Currently Running ..",
-                                        style: TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          color: Colors.green[600],
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    )
-                                    : _buildActionButtons(run),
-                            onTap: () {
-                              logger.log(
-                                '[HISTORY PAGE] Tapped run to see more details.',
-                              );
-                              setState(() {
-                                expandedIndex = isExpanded ? null : index;
-                              });
-                            },
+                      return HistoryEntryCard(
+                        onTap: () {
+                          logger.log(
+                            '[HISTORY PAGE] Tapped run to see more details.',
+                          );
+                          setState(() {
+                            expandedIndex = isExpanded ? null : index;
+                          });
+                        },
+                        isExpanded: isExpanded,
+                        header: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
                           ),
-                          if (isExpanded)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 40.0,
-                                top: 8.0,
-                                bottom: 8.0,
-                              ),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Number of Points: ${run.runPoints.length}",
+                          title: Text(run.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
+                          subtitle: Text("Run on ${run.startTime.toLocal().toString().split('.').first.substring(0, 16)}"),
+                          trailing:
+                              selectionType != SelectionType.none
+                                  ? _buildSelectionControls(run)
+                                  : isRunning
+                                  ? Padding(
+                                    padding: const EdgeInsets.only(right: 12.0),
+                                    child: Text(
+                                      "Currently Running ..",
+                                      style: TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                        color: Colors.green[600],
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                    Text("Vehicle Type: ${run.vehicleType}"),
-                                    Text(
-                                      "Duration: ${run.getFormattedDuration()}",
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          Divider(),
-                        ],
+                                  )
+                                  : _buildActionButtons(run),
+                        ),
+                        expandedContent: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Number of Points: ${run.runPoints.length}"),
+                            SizedBox(height: 2),
+                            Text("Vehicle Type: ${run.vehicleType}"),
+                            SizedBox(height: 2),
+                            Text("Duration: ${run.getFormattedDuration()}"),
+                          ],
+                        ),
                       );
                     },
                   );
@@ -548,6 +531,63 @@ class _HistoryPageState extends State<HistoryPage> {
               ),
             ],
           ),
+    );
+  }
+}
+
+class HistoryEntryCard extends StatelessWidget {
+  final Widget header;
+  final Widget? expandedContent;
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  const HistoryEntryCard({
+    super.key,
+    required this.header,
+    required this.onTap,
+    this.expandedContent,
+    this.isExpanded = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+      child: Card(
+        elevation: 0.5,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 1.0,
+                  vertical: 3.0,
+                ),
+                child: header,
+              ),
+              if (isExpanded && expandedContent != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(26, 0, 18, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Divider(),
+                      const SizedBox(height: 4),
+                      ... expandedContent is Column
+                          ? (expandedContent as Column).children
+                          : [expandedContent!],
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

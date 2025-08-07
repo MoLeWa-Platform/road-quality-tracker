@@ -5,6 +5,7 @@ import 'dart:developer' as dev;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:road_quality_tracker/services/device_meta_service.dart';
 import 'package:road_quality_tracker/services/run_logger.dart';
 import '../services/version_update.dart';
 
@@ -35,12 +36,63 @@ class _SettingsPageState extends State<SettingsPage> {
 
   PackageInfo? packageInfo;
 
+  bool sendDeviceHash = false;
+  bool sendDeviceInfo = false;
+  bool _originalSendDeviceHash = false;
+  bool _originalSendDeviceInfo = false;
+
+  String? _deviceHash;
+
   @override
   void initState() {
     super.initState();
     logger = widget.logger;
     loadCredentials();
     loadPackageInfo();
+    loadDeviceSettings();
+    loadDeviceHash();
+    _checkForChanges();
+  }
+
+  Future<void> loadDeviceHash() async {
+    _deviceHash = await storage.read(key: 'deviceHash');
+    if (_deviceHash == null) {
+      final hash = await DeviceMetaService.generateDeviceHash();
+      await storage.write(key: 'deviceHash', value: hash);
+      setState(() {
+        _deviceHash = hash;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<void> loadDeviceSettings() async {
+    final hashVal = await storage.read(key: 'sendDeviceHash');
+    final infoVal = await storage.read(key: 'sendDeviceInfo');
+
+    final currentHash = hashVal == 'true';
+    final currentInfo = infoVal == 'true';
+
+    setState(() {
+      sendDeviceHash = currentHash;
+      sendDeviceInfo = currentInfo;
+      _originalSendDeviceHash = currentHash;
+      _originalSendDeviceInfo = currentInfo;
+    });
+
+    _checkForChanges(); 
+  }
+
+  Future<void> saveDeviceSettings() async {
+    await storage.write(
+      key: 'sendDeviceHash',
+      value: sendDeviceHash.toString(),
+    );
+    await storage.write(
+      key: 'sendDeviceInfo',
+      value: sendDeviceInfo.toString(),
+    );
   }
 
   Future<void> loadPackageInfo() async {
@@ -74,10 +126,16 @@ class _SettingsPageState extends State<SettingsPage> {
     final trimmedUsername = usernameController.text.trim();
     final password = passwordController.text;
 
-    final changed =
+    final connectionChanged =
         trimmedServerUrl != _originalServerUrl.trim() ||
         trimmedUsername != _originalUsername.trim() ||
         password != _originalPassword;
+
+    final metadataChanged =
+        sendDeviceHash != _originalSendDeviceHash ||
+        sendDeviceInfo != _originalSendDeviceInfo;
+
+    final changed = connectionChanged || metadataChanged;
 
     if (changed != _hasChanged) {
       setState(() {
@@ -207,6 +265,12 @@ class _SettingsPageState extends State<SettingsPage> {
     _originalServerUrl = serverUrlController.text;
     _originalUsername = usernameController.text;
     _originalPassword = passwordController.text;
+
+    _originalSendDeviceHash = sendDeviceHash; 
+    _originalSendDeviceInfo = sendDeviceInfo;
+
+    await saveDeviceSettings();
+
     _checkForChanges();
   }
 
@@ -220,10 +284,7 @@ class _SettingsPageState extends State<SettingsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 25),
-              Text(
-                'Connection Settings',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('Settings', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               Divider(
                 thickness: 1.3,
@@ -235,59 +296,152 @@ class _SettingsPageState extends State<SettingsPage> {
           toolbarHeight: 70,
         ),
         body: Column(
-          mainAxisAlignment: MainAxisAlignment.end, // Push down
+          mainAxisAlignment: MainAxisAlignment.start, // Push down
           children: [
-            const SizedBox(height: 25),
-            _LoginCredentialsSection(
-              serverUrlController: serverUrlController,
-              usernameController: usernameController,
-              passwordController: passwordController,
-              showPassword: _showPassword,
-              toggleShowPassword: () {
-                setState(() {
-                  _showPassword = !_showPassword;
-                });
-              },
-            ),
-            const SizedBox(height: 40),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            // Connection Section
+            SettingsCard(
+              title: "Connection",
               children: [
-                _TestConnectionButton(
-                  isRequesting: _isRequesting,
-                  connectionSuccess: _connectionSuccess,
-                  showErrorColor: _showErrorColor,
-                  onPressed: _saveAndTestConnection,
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                _CheckUpdateButton(
-                  checkingUpdate: _checkingUpdate,
-                  onPressed: () async {
-                    setState(() => _checkingUpdate = true);
-                    final available = await AppUpdater.updateAvailable();
-
-                    if (available == true) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        AppUpdater.showUpdateDialog(context);
-                      });
-                    } else {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        showUpdateSnackbar(available);
-                      });
-                    }
-
-                    if (mounted) {
-                      setState(() => _checkingUpdate = false);
-                    }
+                _LoginCredentialsSection(
+                  serverUrlController: serverUrlController,
+                  usernameController: usernameController,
+                  passwordController: passwordController,
+                  showPassword: _showPassword,
+                  toggleShowPassword: () {
+                    setState(() {
+                      _showPassword = !_showPassword;
+                    });
                   },
                 ),
+                const SizedBox(height: 15),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _TestConnectionButton(
+                    isRequesting: _isRequesting,
+                    connectionSuccess: _connectionSuccess,
+                    showErrorColor: _showErrorColor,
+                    onPressed: _saveAndTestConnection,
+                  ),
+                ),
+                const SizedBox(height: 5),
               ],
             ),
+            // Advanced Section
+            SettingsCard(
+              title: "Advanced",
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.fingerprint_outlined),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Share Device Hash'),
+                              if (sendDeviceHash && _deviceHash != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Text(
+                                    "Hash suffix: ${_deviceHash!.substring(_deviceHash!.length - 6)}",
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.copyWith(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          value: sendDeviceHash,
+                          onChanged: (val) {
+                            setState(() {
+                              sendDeviceHash = val;
+                              _checkForChanges();
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.phone_android_outlined),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Share Device Info'),
+                              if (sendDeviceInfo)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Text(
+                                    "(Model, Manufacturer, OS Version)",
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.copyWith(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          value: sendDeviceInfo,
+                          onChanged: (val) {
+                            setState(() {
+                              sendDeviceInfo = val;
+                              _checkForChanges();
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _CheckUpdateButton(
+                    checkingUpdate: _checkingUpdate,
+                    onPressed: () async {
+                      setState(() => _checkingUpdate = true);
+                      final available = await AppUpdater.updateAvailable();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        available == true
+                            ? AppUpdater.showUpdateDialog(context)
+                            : showUpdateSnackbar(available);
+                      });
+                      if (mounted) setState(() => _checkingUpdate = false);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 5),
+              ],
+            ),
+
             const Spacer(),
             Align(
               alignment: Alignment.bottomCenter,
@@ -338,7 +492,7 @@ class _LoginCredentialsSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
@@ -354,7 +508,7 @@ class _LoginCredentialsSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
@@ -495,3 +649,45 @@ class _SaveButton extends StatelessWidget {
     );
   }
 }
+
+class SettingsCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  final bool initiallyExpanded;
+
+  const SettingsCard({
+    super.key,
+    required this.title,
+    required this.children,
+    this.initiallyExpanded = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Card(
+        elevation: 0.5,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        clipBehavior: Clip.antiAlias,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: initiallyExpanded,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 5),
+            title: Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+}
+

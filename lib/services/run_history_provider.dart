@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:road_quality_tracker/services/device_meta_service.dart';
 
 class RunHistoryProvider with ChangeNotifier {
   final Box<Run> _runBox = Hive.box<Run>('runs');
@@ -105,7 +106,18 @@ class RunHistoryProvider with ChangeNotifier {
   void uploadSelectedRuns(context, Set<String> selectedRunIds) async {
     final runsToUpload =
         completedRuns.where((r) => selectedRunIds.contains(r.id)).toList();
-    final jsonString = buildJsonDownload(runsToUpload);
+    final meta = await DeviceMetaService.getMetaData();
+
+    final jsonString = buildJson(
+      runsToUpload,
+      deviceHash: meta['deviceHash'],
+      sendHash: meta['sendHash'],
+      sendInfo: meta['sendInfo'],
+      model: meta['model'],
+      manufacturer: meta['manufacturer'],
+      osVersion: meta['osVersion'],
+    );
+
     final resultCode = await makeUploadApiCall(jsonString);
 
     if (resultCode < 1) {
@@ -238,7 +250,17 @@ class RunHistoryProvider with ChangeNotifier {
     }
 
     try {
-      final jsonString = buildJsonDownload(downloadRuns);
+      final meta = await DeviceMetaService.getMetaData();
+
+      final jsonString = buildJson(
+        downloadRuns,
+        deviceHash: meta['deviceHash'],
+        sendHash: meta['sendHash'],
+        sendInfo: meta['sendInfo'],
+        model: meta['model'],
+        manufacturer: meta['manufacturer'],
+        osVersion: meta['osVersion'],
+      );
 
       if (!context.mounted) return;
 
@@ -309,14 +331,36 @@ class RunHistoryProvider with ChangeNotifier {
     }
   }
 
-  String buildJsonDownload(List<Run> downloadRuns) {
+  String buildJson(
+    List<Run> downloadRuns, {
+    String? deviceHash,
+    bool sendHash = false,
+    bool sendInfo = false,
+    String? model,
+    String? manufacturer,
+    String? osVersion,
+  }) {
     final jsonList = downloadRuns.map((run) => run.toJson()).toList();
 
-    final encoder = JsonEncoder.withIndent('  ');
-    final prettyJson = encoder.convert({'runs': jsonList});
-    dev.log(prettyJson, name: 'RunHistoryProvider');
+    final payload = <String, dynamic>{'runs': jsonList};
 
-    final msg = jsonEncode({'runs': jsonList});
-    return msg;
+    if (sendHash || sendInfo) {
+      final deviceInfo = {};
+      if (sendHash && deviceHash != null) {
+        deviceInfo['deviceHash'] = deviceHash;
+      }
+      if (sendInfo) {
+        deviceInfo['model'] = model;
+        deviceInfo['manufacturer'] = manufacturer;
+        deviceInfo['os'] = osVersion;
+      }
+
+      payload['deviceInfo'] = deviceInfo;
+    }
+
+    final encoder = JsonEncoder.withIndent('  ');
+    dev.log(encoder.convert(payload), name: 'RunHistoryProvider');
+
+    return jsonEncode(payload);
   }
 }
