@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -14,7 +15,8 @@ class DeviceMetaService {
 
     if (Platform.isAndroid) {
       final info = await deviceInfo.androidInfo;
-      raw = '${info.id}-${info.manufacturer}-${info.model}-${info.version.sdkInt}';
+      final randInt = Random().nextInt(1000000);
+      raw = '$randInt-{info.id}-${info.manufacturer}-${info.model}-${info.version.sdkInt}';
     } else if (Platform.isIOS) {
       final info = await deviceInfo.iosInfo;
       raw = '${info.identifierForVendor}-${info.name}-${info.systemVersion}-${info.model}';
@@ -30,9 +32,13 @@ class DeviceMetaService {
     final sendInfo = (await _storage.read(key: 'sendDeviceInfo')) == 'true';
 
     String? deviceHash = await _storage.read(key: 'deviceHash');
-    if (deviceHash == null && sendHash) {
+    String? alreadyUpdatedStr = await _storage.read(key: 'deviceHashVersion2');
+    bool alreadyUpdated = alreadyUpdatedStr == 'true';
+
+    if ((deviceHash == null || !alreadyUpdated) && sendHash) {
       deviceHash = await generateDeviceHash();
       await _storage.write(key: 'deviceHash', value: deviceHash);
+      await _storage.write(key: 'deviceHashVersion2', value: 'true');
     }
 
     String? model;

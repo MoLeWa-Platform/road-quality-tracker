@@ -56,9 +56,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> loadDeviceHash() async {
     _deviceHash = await storage.read(key: 'deviceHash');
-    if (_deviceHash == null) {
+
+    String? alreadyUpdatedStr = await storage.read(key: 'deviceHashVersion2');
+    bool alreadyUpdated = alreadyUpdatedStr == 'true';
+
+    if (_deviceHash == null || !alreadyUpdated) {
       final hash = await DeviceMetaService.generateDeviceHash();
       await storage.write(key: 'deviceHash', value: hash);
+      await storage.write(key: 'deviceHashVersion2', value: 'true');
       setState(() {
         _deviceHash = hash;
       });
