@@ -15,6 +15,197 @@ import '../services/run_tracker.dart';
 import '../services/run_history_provider.dart';
 import 'dart:developer' as dev;
 
+class _VehicleTypeDialog extends StatefulWidget {
+  const _VehicleTypeDialog({Key? key}) : super(key: key);
+
+  @override
+  State<_VehicleTypeDialog> createState() => _VehicleTypeDialogState();
+}
+
+class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
+  final TextEditingController _customController = TextEditingController();
+
+  String? _selectedKey; // 'Bike', 'Car', 'E-Scooter', 'Custom'
+  String? _customLabel; // user-entered label after submit
+  bool _showCustomInput = false;
+
+  @override
+  void dispose() {
+    _customController.dispose();
+    super.dispose();
+  }
+
+  void _submitCustom() {
+    final text = _customController.text.trim();
+    if (text.isNotEmpty && mounted) {
+      final capitalized = text
+          .split(' ')
+          .where((w) => w.isNotEmpty)
+          .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+          .join(' ');
+      setState(() {
+        _customLabel = capitalized;
+        _showCustomInput = false;
+        _selectedKey = 'Custom';
+      });
+    }
+  }
+
+  Widget _option({
+    required IconData icon,
+    required String keyValue,
+    required String label,
+  }) {
+    final isSelected = _selectedKey == keyValue;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        if (!mounted) return;
+        setState(() {
+          _selectedKey = keyValue;
+          _showCustomInput = keyValue == 'Custom';
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 38,
+            color:
+                isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canStart =
+        _selectedKey != null &&
+        (_selectedKey != 'Custom' ||
+            (_customLabel?.trim().isNotEmpty ?? false));
+
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      title: Text(
+        'Select the Vehicle Type',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      content: SizedBox(
+        width: 600,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 20),
+              Wrap(
+                alignment: WrapAlignment.start,
+                spacing: 36,
+                runSpacing: 24,
+                children: [
+                  _option(
+                    icon: Icons.directions_bike,
+                    keyValue: 'Bike',
+                    label: 'Bike',
+                  ),
+                  _option(
+                    icon: Icons.electric_scooter,
+                    keyValue: 'E-Scooter',
+                    label: 'E-Scooter',
+                  ),
+                  _option(
+                    icon: Icons.directions_car_rounded,
+                    keyValue: 'Car',
+                    label: 'Car',
+                  ),
+                  _option(
+                    icon: Icons.person_add,
+                    keyValue: 'Custom',
+                    label:
+                        (_customLabel == null || _customLabel!.trim().isEmpty)
+                            ? 'Custom'
+                            : _customLabel!,
+                  ),
+                ],
+              ),
+              if (_showCustomInput) ...[
+                const SizedBox(height: 30),
+                Row(
+                  children: [
+                    Expanded(
+                      child:
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
+                        child: TextField(
+                          controller: _customController,
+                          autofocus: true,
+                          onSubmitted: (_) => _submitCustom(),
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Enter your own vehicle',
+                            hintText: 'e.g. Motorcycle, Tractor ..',
+                            border: UnderlineInputBorder(),
+                            isDense: true,
+                          ),
+                          minLines: 1,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Submit',
+                      onPressed: _submitCustom,
+                      icon: const Icon(Icons.check),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(width: 15),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed:
+              canStart
+                  ? () {
+                    final value =
+                        (_selectedKey == 'Custom')
+                            ? _customLabel!.trim()
+                            : _selectedKey!;
+                    Navigator.of(context).pop(value);
+                  }
+                  : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                canStart ? Theme.of(context).colorScheme.primary : Colors.grey,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Start Run'),
+        ),
+      ],
+    );
+  }
+}
+
 class TrackingPage extends StatefulWidget {
   final RunTracker runTracker;
   final RunLogger logger;
@@ -112,109 +303,11 @@ class _TrackingPageState extends State<TrackingPage> {
     );
   }
 
-  Future<String?> selectVehicleType(BuildContext context) async {
-    String? selected;
-
-    return await showDialog<String>(
+  Future<String?> selectVehicleType(BuildContext context) {
+    return showDialog<String>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Select the Vehicle Type'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selected = 'Bike';
-                          });
-                        },
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.directions_bike,
-                              size: 35,
-                              color:
-                                  selected == 'Bike'
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Colors.grey,
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Bike',
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.copyWith(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selected = 'Car';
-                          });
-                        },
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.directions_car_rounded,
-                              size: 35,
-                              color:
-                                  selected == 'Car'
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Colors.grey,
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Car',
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.copyWith(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context), // Cancel
-                  child: Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed:
-                      selected != null
-                          ? () => Navigator.pop(context, selected)
-                          : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        selected != null
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text('Start Run'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      barrierDismissible: true,
+      builder: (_) => const _VehicleTypeDialog(),
     );
   }
 
@@ -562,47 +655,62 @@ class PreRunSensorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(height: 75),
-          ValueListenableBuilder<LocationSpec?>(
-            valueListenable: runTracker.currentRawLocation,
-            builder: (context, loc, _) {
-              return PlainCoordinateOutput(location: loc);
-            },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 75),
+                ValueListenableBuilder<LocationSpec?>(
+                  valueListenable: runTracker.currentRawLocation,
+                  builder: (context, loc, _) {
+                    return PlainCoordinateOutput(location: loc);
+                  },
+                ),
+                SizedBox(height: 17),
+                ValueListenableBuilder<double?>(
+                  valueListenable: runTracker.currentRawSpeed,
+                  builder: (context, speed, _) {
+                    return PlainValueOutput(
+                      identifier: 'Speed',
+                      value: speed,
+                      unit: 'km/h',
+                    );
+                  },
+                ),
+                SizedBox(height: 17),
+                ValueListenableBuilder<List<AccelerometerEvent>>(
+                  valueListenable: runTracker.currentRawVibration,
+                  builder: (context, vib, _) {
+                    return PlainSensorOutput(
+                      type: 'Current Vibration',
+                      valueList: vib,
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-          SizedBox(height: 17),
-          ValueListenableBuilder<double?>(
-            valueListenable: runTracker.currentRawSpeed,
-            builder: (context, speed, _) {
-              return PlainValueOutput(
-                identifier: 'Speed',
-                value: speed,
-                unit: 'km/h',
-              );
-            },
-          ),
-          SizedBox(height: 17),
-          ValueListenableBuilder<List<AccelerometerEvent>>(
-            valueListenable: runTracker.currentRawVibration,
-            builder: (context, vib, _) {
-              return PlainSensorOutput(
-                type: 'Current Vibration',
-                valueList: vib,
-              );
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 Widget buildRunSensorCard(BuildContext context, Run run, RunPoint? point) {
   final vehicleType = run.vehicleType;
+  final vehicleIcon =
+      (vehicleType == 'Bike')
+          ? Icons.directions_bike
+          : (vehicleType == 'E-Scooter')
+          ? Icons.electric_scooter
+          : (vehicleType == 'Car')
+          ? Icons.directions_car
+          : Icons.person_add;
   final labelStyle = Theme.of(
     context,
   ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, fontSize: 16);
@@ -684,16 +792,7 @@ Widget buildRunSensorCard(BuildContext context, Run run, RunPoint? point) {
                   fontSize: 19,
                 ),
               ),
-              if (vehicleType == 'Bike')
-                Icon(
-                  Icons.directions_bike,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              if (vehicleType == 'Car')
-                Icon(
-                  Icons.directions_car,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+              Icon(vehicleIcon, color: Theme.of(context).colorScheme.primary),
             ],
           ),
           Divider(),
