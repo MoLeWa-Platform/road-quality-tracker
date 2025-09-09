@@ -145,9 +145,8 @@ class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child:
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
                         child: TextField(
                           controller: _customController,
                           autofocus: true,
@@ -204,6 +203,140 @@ class _VehicleTypeDialogState extends State<_VehicleTypeDialog> {
       ],
     );
   }
+}
+
+Future<List<String>> showAddTagsDialog(BuildContext context) {
+  final tagInputController = TextEditingController();
+  final Set<String> tags = {}; 
+  String capitalise(String sentence) {
+    return sentence
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
+  void addTag(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return;
+    final cap = capitalise(trimmed);
+    if (!tags.contains(cap)) {
+      tags.add(cap);
+    }
+    tagInputController.clear();
+  }
+
+  void removeTag(String t) => tags.remove(t);
+
+  return showDialog<List<String>>(
+    context: context,
+    barrierDismissible: false, // must choose Save Run
+    builder: (ctx) {
+      return PopScope(
+        canPop: false, // disables back gesture / back button, prevent Android back from closing without saving
+        child: StatefulBuilder(
+          builder:
+              (ctx, setState) => AlertDialog(
+                title: const Text('Add Tags to the Run'),
+                content: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Tags are optional. You can save your run without adding any.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Theme.of(context).hintColor),
+                          ),
+                        ),
+
+                        TextField(
+                          controller: tagInputController,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (val) => setState(() => addTag(val)),
+                          decoration: InputDecoration(
+                            labelText: 'Add Tag',
+                            hintText: 'Type a tag and press Enter',
+                            border: const UnderlineInputBorder(),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.add),
+                              tooltip: 'Add Tag',
+                              onPressed:
+                                  () => setState(
+                                    () => addTag(tagInputController.text),
+                                  ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        Text(
+                          'Tags',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 5,
+                            top: 7,
+                            bottom: 8,
+                          ),
+                          child: Wrap(
+                            spacing: 5,
+                            runSpacing: 0,
+                            children: [
+                              for (final t in tags)
+                                InputChip(
+                                  label: Text(
+                                    t,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  onDeleted:  () => setState(() => removeTag(t)),
+                                  backgroundColor:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide.none,
+                                  ),
+                                ),
+                              if (tags.isEmpty)
+                                Text(
+                                  'No tags yet',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: Colors.grey),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 16,),
+                actions: [
+                  FilledButton(
+                    onPressed:
+                        () => Navigator.of(ctx).pop(tags.toList()..sort()),
+                    child: const Text('Save Run'),
+                  ),
+                ],
+              ),
+        ),
+      );
+    },
+  ).then((value) => value ?? <String>[]);
 }
 
 class TrackingPage extends StatefulWidget {
@@ -316,18 +449,23 @@ class _TrackingPageState extends State<TrackingPage> {
     Run? completedRun = await runTracker.endRun();
     backgroundService.invoke('stopForeground');
     if (completedRun != null && mounted) {
-      context.read<RunHistoryProvider>().updateRun(completedRun);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Saved! Check your run history.",
-            textAlign: TextAlign.center,
+      final newTags = await showAddTagsDialog(context);
+      completedRun.tags = newTags;
+
+      if (mounted) {
+        context.read<RunHistoryProvider>().updateRun(completedRun);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Saved! Check your run history.",
+              textAlign: TextAlign.center,
+            ),
+            duration: Duration(seconds: 1),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
           ),
-          duration: Duration(seconds: 1),
-          backgroundColor: Theme.of(context).colorScheme.secondary,
-        ),
-      );
-      checkLastRunForBugs(context, completedRun);
+        );
+        checkLastRunForBugs(context, completedRun);
+      }
     }
   }
 

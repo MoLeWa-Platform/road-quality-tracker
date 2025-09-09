@@ -16,6 +16,7 @@ extension RunCopy on Run {
       vehicleType: vehicleType,
       runPoints: List<RunPoint>.from(runPoints.map((p) => p.copy())), 
       isSynced: isSynced,
+      tags: List<String>.from(tags)
     );
 }
 }
@@ -43,6 +44,9 @@ class Run extends HiveObject {
   @HiveField(6)
   String vehicleType;
 
+  @HiveField(7)
+  List<String> tags;
+
   Run({
     required this.name,
     required this.id,
@@ -50,8 +54,9 @@ class Run extends HiveObject {
     required this.startTime,
     required this.runPoints,
     required this.isSynced,
-    this.endTime
-  });
+    this.endTime,
+    List<String>? tags,              
+  }) : tags = tags ?? <String>[];
 
   factory Run.create(DateTime startTime, String vehicleType) {
     final rand = Random(10218).nextInt(10000);
@@ -68,6 +73,7 @@ class Run extends HiveObject {
       startTime: startTime,
       runPoints: [],
       isSynced: false,
+      tags: <String>[],
     );
   }
   
@@ -91,6 +97,7 @@ class Run extends HiveObject {
   'vehicleType': vehicleType,
   'startTime': toIsoWithOffset(startTime),
   'endTime': toIsoWithOffset(endTime),
+  'tags': tags,
   'points': runPoints.map((p) => p.toJson()).toList(),
   };
 

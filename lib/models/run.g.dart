@@ -24,13 +24,14 @@ class RunAdapter extends TypeAdapter<Run> {
       runPoints: (fields[4] as List).cast<RunPoint>(),
       isSynced: fields[5] as bool,
       endTime: fields[3] as DateTime?,
+      tags: (fields[7] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Run obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class RunAdapter extends TypeAdapter<Run> {
       ..writeByte(5)
       ..write(obj.isSynced)
       ..writeByte(6)
-      ..write(obj.vehicleType);
+      ..write(obj.vehicleType)
+      ..writeByte(7)
+      ..write(obj.tags);
   }
 
   @override
