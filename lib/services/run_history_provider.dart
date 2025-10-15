@@ -9,12 +9,26 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:road_quality_tracker/services/device_meta_service.dart';
 
+class UploadResult {
+  final bool success;
+  final int statusCode;
+  UploadResult(this.success, this.statusCode);
+}
+
 class RunHistoryProvider with ChangeNotifier {
   final Box<Run> _runBox = Hive.box<Run>('runs');
   final storage = FlutterSecureStorage();
   bool _writingRun = false;
 
   List<Run> get completedRuns => _runBox.values.toList();
+
+  bool _isUploading = false;
+  bool get isUploading => _isUploading;
+
+  void _setUploading(bool v) {
+    _isUploading = v;
+    notifyListeners();
+  }
 
   Run? getRunById(String runId) {
     try {
@@ -103,11 +117,17 @@ class RunHistoryProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void uploadSelectedRuns(context, Set<String> selectedRunIds) async {
+  Future<void> uploadSelectedRuns(
+    BuildContext context,
+    Set<String> selectedRunIds,
+  ) async {
     final runsToUpload =
         completedRuns.where((r) => selectedRunIds.contains(r.id)).toList();
-    final meta = await DeviceMetaService.getMetaData();
+    if (runsToUpload.isEmpty) return;
 
+    _setUploading(true);
+
+    final meta = await DeviceMetaService.getMetaData();
     final jsonString = buildJson(
       runsToUpload,
       deviceHash: meta['deviceHash'],
@@ -118,39 +138,113 @@ class RunHistoryProvider with ChangeNotifier {
       osVersion: meta['osVersion'],
     );
 
-    final resultCode = await makeUploadApiCall(jsonString);
+    final uploadResult = await makeUploadApiCall(jsonString);
 
-    if (resultCode < 1) {
-      dev.log('ERROR occured when uploading Runs!', name: 'RunHistoryProvider');
-      updateSyncStatus(false, runsToUpload);
-      final text =
-          resultCode == -1
-              ? 'Please provide your credentials in the settings!'
-              : 'Upload failed! Have you checked your connection in the Settings?';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(text, textAlign: TextAlign.center),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.fixed,
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    } else {
+    if (uploadResult.success) {
       dev.log(
         'Uploaded ${runsToUpload.length} Runs.',
         name: 'RunHistoryProvider',
       );
       updateSyncStatus(true, runsToUpload);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Upload successful!'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.fixed,
-          backgroundColor: Colors.green[800],
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload successful!'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.fixed,
+            backgroundColor: Colors.green[800],
+          ),
+        );
+      }
+    } else {
+      // fallback if 413 (payload too large) 
+      if (uploadResult.statusCode == 413) {
+        if (context.mounted) {
+          await uploadSingles(context, runsToUpload, meta);
+        }
+      } else {
+        // generic failure case 
+        final msg =
+            uploadResult.statusCode == -1
+                ? 'Please provide your credentials in the settings!'
+                : uploadResult.statusCode == 0
+                ? 'Connection error: Server not reachable.'
+                : 'Upload failed (Code ${uploadResult.statusCode}).';
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg, textAlign: TextAlign.center),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+        updateSyncStatus(false, runsToUpload);
+      }
     }
+    _setUploading(false);
     notifyListeners();
+  }
+
+  Future uploadSingles(
+    BuildContext context,
+    List<Run> runsToUpload,
+    Map<String, dynamic> meta,
+  ) async {
+    dev.log(
+      'Payload too large — retrying individual uploads',
+      name: 'RunHistoryProvider',
+    );
+
+    final failed = <String, int>{};
+
+    for (final run in runsToUpload) {
+      final singleJson = buildJson(
+        [run],
+        deviceHash: meta['deviceHash'],
+        sendHash: meta['sendHash'],
+        sendInfo: meta['sendInfo'],
+        model: meta['model'],
+        manufacturer: meta['manufacturer'],
+        osVersion: meta['osVersion'],
+      );
+
+      final singleResult = await makeUploadApiCall(singleJson);
+      if (!singleResult.success) {
+        failed[run.name] = singleResult.statusCode;
+      } else {
+        updateSyncStatus(true, [run]);
+      }
+    }
+
+    if (failed.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload successful after retry!'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.fixed,
+            backgroundColor: Colors.green[800],
+          ),
+        );
+      }
+    } else {
+      final failedText = failed.entries
+          .map((e) => '\n${e.key} (Code ${e.value})')
+          .join(', ');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Some Uploads failed:$failedText',
+              textAlign: TextAlign.center,
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   void updateSyncStatus(bool uploaded, List<Run> runs) {
@@ -163,41 +257,42 @@ class RunHistoryProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<int> makeUploadApiCall(String runsJson) async {
+  Future<UploadResult> makeUploadApiCall(String runsJson) async {
     final urlString = await storage.read(key: 'serverUrl');
     final username = await storage.read(key: 'username');
     final password = await storage.read(key: 'password');
 
-    if (urlString == null ||
-        username == null ||
-        password == null ||
-        urlString == '' ||
-        username == '' ||
-        password == '') {
+    if ([urlString, username, password].any((v) => v == null || v!.isEmpty)) {
       dev.log('Missing credentials or server URL', name: 'RunHistoryProvider');
-      return -1; // Treat as error
+      return UploadResult(false, -1);
     }
 
     try {
-      final url = Uri.parse(urlString);
-      final request = await HttpClient().postUrl(url);
-      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Basic ${base64Encode(utf8.encode('$username:$password'))}',
-      );
+      final url = Uri.parse(urlString!);
+      final client =
+          HttpClient()..connectionTimeout = const Duration(seconds: 30);
+      final request = await client.postUrl(url);
+      request.headers
+        ..set(HttpHeaders.contentTypeHeader, 'application/json')
+        ..set(
+          HttpHeaders.authorizationHeader,
+          'Basic ${base64Encode(utf8.encode('$username:$password'))}',
+        );
       request.add(utf8.encode(runsJson));
 
       final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+
       dev.log(
-        'Upload status: ${response.statusCode}',
+        'Upload status: ${response.statusCode} body: $body',
         name: 'RunHistoryProvider',
       );
 
-      return response.statusCode >= 200 && response.statusCode < 300 ? 1 : 0;
+      final ok = response.statusCode >= 200 && response.statusCode < 300;
+      return UploadResult(ok, response.statusCode);
     } catch (e) {
       dev.log('Upload error: $e', name: 'RunHistoryProvider');
-      return 0;
+      return UploadResult(false, 0);
     }
   }
 

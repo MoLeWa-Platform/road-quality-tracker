@@ -149,215 +149,231 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
           toolbarHeight: 70,
         ),
-        body: Column(
+        body: Stack(
           children: [
-            const SizedBox(height: 15),
-            if (selectionType != SelectionType.none)
-              Material(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 12.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+            Column(
+              children: [
+                const SizedBox(height: 15),
+                if (selectionType != SelectionType.none)
+                  Material(
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            selectionType == SelectionType.upload
-                                ? Icons.cloud_upload
-                                : Icons.download,
-                            color:
-                                Theme.of(
+                          Row(
+                            children: [
+                              Icon(
+                                selectionType == SelectionType.upload
+                                    ? Icons.cloud_upload
+                                    : Icons.download,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer,
+                                size: 20,
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                selectionType == SelectionType.upload
+                                    ? "Select runs to upload."
+                                    : "Select runs to download.",
+                                style: Theme.of(
                                   context,
-                                ).colorScheme.onSecondaryContainer,
-                            size: 20,
+                                ).textTheme.bodyMedium?.copyWith(
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.onSecondaryContainer,
+                                ),
+                              ),
+                            ],
                           ),
-                          SizedBox(width: 10),
-                          Text(
-                            selectionType == SelectionType.upload
-                                ? "Select runs to upload."
-                                : "Select runs to download.",
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodyMedium?.copyWith(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onSecondaryContainer,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Select all",
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.onSecondaryContainer,
+                                ),
+                              ),
+                              Checkbox(
+                                value: _areAllSelected(),
+                                onChanged: (checked) {
+                                  logger.log(
+                                    '[HISTORY PAGE] Tapped select-all checkbox, with checked=$checked.',
+                                  );
+                                  setState(() {
+                                    if (checked == true) {
+                                      selectedRunIds =
+                                          completedRuns!.map((r) => r.id).toSet();
+                                    } else {
+                                      selectedRunIds.clear();
+                                    }
+                                  });
+                                },
+                              ),
+                              SizedBox(width: 8),
+                            ],
                           ),
                         ],
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            "Select all",
-                            style: TextStyle(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                          Checkbox(
-                            value: _areAllSelected(),
-                            onChanged: (checked) {
+                    ),
+                  ),
+                Expanded(
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: RunTracker.activeRunId,
+                    builder: (context, activeRunId, _) {
+                      return ListView.builder(
+                        itemCount: completedRuns!.length,
+                        itemBuilder: (context, index) {
+                          final run = completedRuns![index];
+                          final isExpanded = expandedIndex == index;
+                          final isRunning = run.id == activeRunId;
+            
+                          return HistoryEntryCard(
+                            onTap: () {
                               logger.log(
-                                '[HISTORY PAGE] Tapped select-all checkbox, with checked=$checked.',
+                                '[HISTORY PAGE] Tapped run to see more details.',
                               );
                               setState(() {
-                                if (checked == true) {
-                                  selectedRunIds =
-                                      completedRuns!.map((r) => r.id).toSet();
-                                } else {
-                                  selectedRunIds.clear();
-                                }
+                                expandedIndex = isExpanded ? null : index;
                               });
                             },
-                          ),
-                          SizedBox(width: 8),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            Expanded(
-              child: ValueListenableBuilder<String?>(
-                valueListenable: RunTracker.activeRunId,
-                builder: (context, activeRunId, _) {
-                  return ListView.builder(
-                    itemCount: completedRuns!.length,
-                    itemBuilder: (context, index) {
-                      final run = completedRuns![index];
-                      final isExpanded = expandedIndex == index;
-                      final isRunning = run.id == activeRunId;
-
-                      return HistoryEntryCard(
-                        onTap: () {
-                          logger.log(
-                            '[HISTORY PAGE] Tapped run to see more details.',
+                            selectionType: selectionType,
+                            isExpanded: isExpanded,
+                            isRunning: isRunning,
+                            run: run,
+                            buildActionButtons: _buildActionButtons(run),
+                            buildSelectionControls: _buildSelectionControls(run),
                           );
-                          setState(() {
-                            expandedIndex = isExpanded ? null : index;
-                          });
                         },
-                        selectionType: selectionType,
-                        isExpanded: isExpanded,
-                        isRunning: isRunning,
-                        run: run,
-                        buildActionButtons: _buildActionButtons(run),
-                        buildSelectionControls: _buildSelectionControls(run),
                       );
                     },
-                  );
-                },
+                  ),
+                ),
+                SizedBox(height: 15),
+                Padding(
+                  padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+                  child:
+                      selectionType == SelectionType.none
+                          ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed:
+                                    completedRuns!.isNotEmpty
+                                        ? _downloadRuns
+                                        : null,
+                                icon: Icon(Icons.download),
+                                label: Text("Download Runs"),
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                  elevation: 3,
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed:
+                                    completedRuns!.isNotEmpty
+                                        ? _uploadRuns
+                                        : null, //hasUnsyncedRuns! ? _uploadRuns: null,
+                                icon: Icon(Icons.upload),
+                                label: Text("Upload Unsynced"),
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                  elevation: 3,
+                                ),
+                              ),
+                            ],
+                          )
+                          : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    selectionType = SelectionType.none;
+                                    selectedRunIds.clear();
+                                  });
+                                },
+                                icon: Icon(Icons.close),
+                                label: Text("Cancel"),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  if (selectionType == SelectionType.upload) {
+                                    logger.log('[HISTORY PAGE] Uploading runs.');
+                                    context
+                                        .read<RunHistoryProvider>()
+                                        .uploadSelectedRuns(
+                                          context,
+                                          selectedRunIds,
+                                        );
+                                  } else if (selectionType ==
+                                      SelectionType.download) {
+                                    logger.log('[HISTORY PAGE] Downloading runs.');
+                                    context
+                                        .read<RunHistoryProvider>()
+                                        .downloadSelectedRuns(
+                                          context,
+                                          selectedRunIds,
+                                        );
+                                  }
+                                  setState(() {
+                                    selectionType = SelectionType.none;
+                                    selectedRunIds.clear();
+                                  });
+                                },
+                                icon: Icon(
+                                  selectionType == SelectionType.upload
+                                      ? Icons.upload
+                                      : Icons.download,
+                                ),
+                                label: Text(
+                                  selectionType == SelectionType.upload
+                                      ? "Submit Upload"
+                                      : "Download Runs",
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.secondary,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                ),
+                SizedBox(height: 20),
+              ],
+            ),
+            if (runHistoryProvider!=null && runHistoryProvider!.isUploading)
+          Positioned.fill(
+            child: AbsorbPointer(
+              absorbing: true,
+              child: Container(
+                color: Colors.black.withOpacity(0.2),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
               ),
             ),
-            SizedBox(height: 15),
-            Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-              child:
-                  selectionType == SelectionType.none
-                      ? Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed:
-                                completedRuns!.isNotEmpty
-                                    ? _downloadRuns
-                                    : null,
-                            icon: Icon(Icons.download),
-                            label: Text("Download Runs"),
-                            style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              elevation: 3,
-                            ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed:
-                                completedRuns!.isNotEmpty
-                                    ? _uploadRuns
-                                    : null, //hasUnsyncedRuns! ? _uploadRuns: null,
-                            icon: Icon(Icons.upload),
-                            label: Text("Upload Unsynced"),
-                            style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              elevation: 3,
-                            ),
-                          ),
-                        ],
-                      )
-                      : Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                selectionType = SelectionType.none;
-                                selectedRunIds.clear();
-                              });
-                            },
-                            icon: Icon(Icons.close),
-                            label: Text("Cancel"),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              if (selectionType == SelectionType.upload) {
-                                logger.log('[HISTORY PAGE] Uploading runs.');
-                                context
-                                    .read<RunHistoryProvider>()
-                                    .uploadSelectedRuns(
-                                      context,
-                                      selectedRunIds,
-                                    );
-                              } else if (selectionType ==
-                                  SelectionType.download) {
-                                logger.log('[HISTORY PAGE] Downloading runs.');
-                                context
-                                    .read<RunHistoryProvider>()
-                                    .downloadSelectedRuns(
-                                      context,
-                                      selectedRunIds,
-                                    );
-                              }
-                              setState(() {
-                                selectionType = SelectionType.none;
-                                selectedRunIds.clear();
-                              });
-                            },
-                            icon: Icon(
-                              selectionType == SelectionType.upload
-                                  ? Icons.upload
-                                  : Icons.download,
-                            ),
-                            label: Text(
-                              selectionType == SelectionType.upload
-                                  ? "Submit Upload"
-                                  : "Download Runs",
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.secondary,
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.onSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-            ),
-            SizedBox(height: 20),
+          ),
           ],
         ),
       ),
